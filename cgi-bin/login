@@ -17,6 +17,7 @@
 ##
 ###
 
+use lib '/usr/local/nocat'; # or wherever.
 use NoCat;
 use strict;
 
@@ -24,24 +25,30 @@ my $authserv	= NoCat->auth_service( ConfigFile => $ENV{NOCAT} );
 my $cgi		= $authserv->cgi;
 my %p		= $cgi->Vars;
 
-##
+# Debug configuration setup.
+$authserv->check_config(qw( 
+    LoginForm FatalForm RenewForm SuccessForm
+    LoginGreeting LoginMissing LoginBadUser LoginBadPass 
+));
+
+$authserv->log( 7, sprintf( "User %s from %s requests %s", 
+    $p{user} || "", $cgi->remote_host, lc( $p{mode} ) || "form" ) );
+
 # Have we filled in the form yet?  No?  If not, present one.
-##
-$authserv->log( 7, $cgi->remote_host . " requests " . (lc $p{mode} || "form") );
+$authserv->display( LoginForm => "LoginGreeting" ) unless $p{mode};
 
-if ( not $p{mode} ) {
-    $authserv->display( LoginForm => "LoginGreeting" );
-} elsif ( $p{mode} =~ /^login/io ) {
-    $authserv->display( FatalForm => "Your MAC address is undefined.  Problem with the gateway?" )
-	unless $p{mac};
-    $authserv->display( FatalForm => "Your gateway token is undefined.  Problem with the gateway?" )
-	unless $p{token};
-}
+# Verify prerequisites.
+$authserv->display( FatalForm => "Your MAC address is undefined.  Problem with the gateway?" )
+    unless $p{mac};
+$authserv->display( FatalForm => "Your gateway token is undefined.  Problem with the gateway?" )
+    unless $p{token};
 
-if ( $p{mode} =~ /^skip/io ) {
+# If the user skipped authentication, set public-class service.
+if ( $p{mode} =~ /^skip/io or ( $p{class} and $p{class} =~ /^public/io ) ) {
     $p{user}	= "UNKNOWN";
     $p{class}	= "Public";
-    $p{mode}	= "login"; # for renewal purposes.
+
+# Otherwise, attempt to authenticate the user.
 } else {
     # Are we just missing required fields?
     $authserv->display( LoginForm => "LoginMissing"   ) unless $p{user} and $p{pass};
@@ -52,29 +59,42 @@ if ( $p{mode} =~ /^skip/io ) {
     $authserv->display( LoginForm => "LoginBadUser"   ) unless $user->id;
     $authserv->display( LoginForm => "LoginBadPass"   ) unless $user->authenticate( $p{pass} );
     # $authserv->display( LoginForm => "LoginBadStatus" ) unless $user->authorize;
+
+    # Set the service class based on the user's authorization.
     $p{class} = $user->authorize ? "Member" : "Public";
 }
 
-##
-# Finally, notify the gateway (and the user) as to the outcome.
-##
+# Set the class variable for $authserv->renewal.
+$cgi->param( class => $p{class} );
 
+# Finally, notify the gateway (and the user) as to the outcome.
 my ( $form, $refresh, $gw );
 
+# Either we're requesting the renewal popup box...
 if ( $p{mode} =~ /^popup/io ) {
     $form = "RenewForm";
-    $refresh = $authserv->renewal;
+    $refresh = $authserv->renew_url;
+
+# Or we're either logging in, or renewing, in which case, notify the gateway.
 } elsif ($gw = $authserv->notify( Permit => \%p )) {
     if ( $p{mode} =~ /^renew/io ) {
 	$form = "RenewForm";
-	$refresh = $authserv->renewal( $gw );
+	$refresh = $authserv->renew_url( $gw );
     } else {
 	$form = "SuccessForm";
 	$refresh = "5; URL=" . ($p{redirect} || $authserv->{HomePage});
-	$p{popup} = $authserv->renewal( $gw );
+	$p{popup} = $authserv->renew_url( $gw ); 
+	    # set the javascript *link* to the popup box.
     }
+
+# Or something's really wrong.
 } else {
   $authserv->display( FatalForm => "Authentication error: $!" );
 }
 
-print $cgi->header( -Refresh => $refresh ), $authserv->template( $form => \%p ); 
+$p{logout} = $authserv->logout_url; # Make a logout link.
+
+# Execute on the plan and tell a compelling story to the user.
+print $cgi->header( -Refresh => $refresh ), $authserv->template( $form => \%p );
+
+# Fin

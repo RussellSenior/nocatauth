@@ -1,31 +1,28 @@
 #!/usr/bin/perl -w
 
 ##
-# VERY simple access control script
+# VERY simple access control script for leeenux
 ##
 
 $ENV{PATH}="/sbin:/usr/sbin:/usr/local/sbin";
 
 sub panic {
   print shift;
-  die "Usage: $0 [permit|deny] [Interface] [MAC] [IP] [Class]\n\nExample: $0 permit eth0 00:02:2d:aa:bb:cc 10.0.0.105 1\n";
+  die "Usage: $0 [permit|deny] [MAC] [IP] [Class]\n\nExample: $0 permit eth0 00:02:2d:aa:bb:cc 10.0.0.105 1\n";
 }
 
-!$ARGV[4] && panic("FATAL: Not enough parameters!\n");
+panic("FATAL: Not enough parameters!\n") unless @ARGV >= 4;
 
+my ( $action, $mac, $ip, $class ) = @ARGV;
 my $cmd = "";
 
-if($ARGV[0] =~ /^permit$/i) {
-  $cmd = "-A";
-}
-elsif($ARGV[0] =~ /^deny$/i) {
-  $cmd = "-D";
-}
-else {
-  panic("FATAL: Bad parameter: $ARGV[0]!\n");
-}
+$action = { permit => "-A", deny => "-D" } -> {lc $action}
+    or panic("FATAL: Bad action: $action!\n");
 
-exec("iptables $cmd PREROUTING -i $ARGV[1] -t mangle -m mac --mac-source $ARGV[2] -s $ARGV[3] -j MARK --set-mark 1");
+$class = { owner => 1, member => 2, public => 3 } -> {lc $class}
+    or panic("FATAL: Bad class: $action!\n");
+
+exec("iptables $action PREROUTING -t mangle -m mac --mac-source $mac -s $ip -j MARK --set-mark $class");
 
 #
 # Ende

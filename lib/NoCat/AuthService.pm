@@ -1,11 +1,12 @@
 package NoCat::AuthService;
 
-use NoCat;
+use NoCat qw( LOGOUT );
 use IO::Socket;
 use strict;
-use vars qw( @ISA );
+use vars qw( @ISA @REQUIRED );
 
-@ISA = 'NoCat';
+@REQUIRED   = qw( GatewayPort NotifyTimeout LoginTimeout RenewTimeout );
+@ISA	    = 'NoCat';
 
 sub cgi {
     my $self = shift;
@@ -48,8 +49,9 @@ sub notify {
     $gateway->print( $msg->text );
     $gateway->print( "\n\n" ); # EOF
 
-    # $gateway->shutdown( 1 ); # Done writing.
-    shutdown( $gateway, 1 );
+    # Done writing.
+    # $gateway->shutdown( 1 );
+    shutdown( $gateway, 1 );  # IO::Socket::INET is broken in Perl 5.005?
 
     # Throw away the gateway's HTTP header.
     $msg = "";
@@ -62,33 +64,45 @@ sub notify {
     return \%args;
 }
 
-sub renewal {
+sub is_login {
+    my $self = shift;
+    return scalar( $self->cgi->param("mode") =~ /^(?:login|skip)/io );
+}
+
+sub renew_url {
     my ( $self, $args )	= @_;
     my $cgi		= $self->cgi;
-    my $mode		= $cgi->param("mode");
     my $timeout;    
 
-    if ( $mode =~ /^login/io ) {
-	$cgi->param( mode => "popup" );
-    } else {
-	$cgi->param( mode => "renew" );
-    }
-
+    # If there's arguments from a gateway response, use them.
+    #
     if ( $args ) {
-	$timeout = $args->{Timeout} || $self->{LoginTimeout};
+	$timeout = $args->{Timeout};
 	$cgi->param( token => $args->{Token} );
     } else {
 	$timeout = $cgi->param( "timeout" ); 
     }
 
+    $timeout ||= $self->{LoginTimeout};
     $cgi->param( timeout => $timeout );
 
-    if ( $mode =~ /^login/io ) {
+    # Create a new popup box, or if we already have one, just refresh it.
+    #
+    if ( $self->is_login ) {
+	$cgi->param( mode => "popup" );
 	return $cgi->url( -query => 1 );
     } else {
-	$timeout = int(( $timeout || $self->{LoginTimeout} ) / 2);
+	$cgi->param( mode => "renew" );
+	$timeout = int( $timeout * $self->{RenewTimeout} );
 	return "$timeout; URL=" . $cgi->url( -query => 1 );
     }
+}
+
+sub logout_url {
+    my $self	= shift;
+    my $cgi	= $self->cgi;
+    
+    return "http://" . $cgi->remote_host . ":" . $self->{GatewayPort} . LOGOUT;
 }
 
 sub display {

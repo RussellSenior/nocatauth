@@ -22,7 +22,10 @@ sub sign {
     return $self->text if $self->{Signed} and not defined $txt;
     $txt = $self->text( $txt );
 
-    open2( \*IN, \*OUT, $self->{MessageSign} ) or die "$self->{MessageSign}: $!";
+    die "Can't find required MessageSign directive" unless $self->{MessageSign};
+    my $cmd = $self->SUPER::format( $self->{MessageSign} );
+
+    open2( \*IN, \*OUT, $cmd ) or die "$cmd: $!";
     print OUT $txt;
     close OUT;
 
@@ -41,17 +44,19 @@ sub verify {
     return $self->text if $self->{Verified} and not defined $txt;
     $txt = $self->text( $txt );
 
+    die "Can't find required MessageVerify directive" unless $self->{MessageVerify};
+    my $cmd = $self->SUPER::format( $self->{MessageVerify} );
     my $kid = open OUT, "|-";
 
     if ( not defined $kid ) {
-	die "$self->{MessageVerify}: fork failure";
+	die "$cmd: fork failure";
     } elsif ( not $kid ) {
-	exec $self->{MessageVerify};
+	exec $cmd;
     }
 
     print OUT $txt;
     my $success = close OUT;
-    $self->log( 1, "$self->{MessageVerify}: $!" ) if $! and not $success;
+    $self->log( 1, "$cmd: $!" ) if $! and not $success;
     return $success;
 }
 

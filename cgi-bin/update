@@ -12,6 +12,7 @@
 ##
 ###
 
+use lib '/usr/local/nocat/lib'; 
 use NoCat;
 use strict;
 
@@ -20,6 +21,11 @@ my $cgi		= $authserv->cgi;
 my %p		= $cgi->Vars;
 
 sub respond { $authserv->display( UpdateForm => @_ ) }
+
+$authserv->check_config(qw(
+    UpdateForm UpdateGreeting UserIDField UpdateBadUser UpdateBadPass
+    UpdateInvalidPass UpdatePassNoMatch MinPasswdLength UpdateFields UpdateSuccess
+));
 
 ##
 # Have we filled in the form yet?  No?  If not, present one.

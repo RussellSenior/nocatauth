@@ -3,11 +3,10 @@ package NoCat::User;
 use NoCat;
 use Digest::MD5 qw( md5_base64 );
 use strict;
-use vars qw( @ISA );
+use vars qw( @REQUIRED @ISA );
 
-@ISA = 'NoCat';
-
-my @Required_Parameters = qw( 
+@ISA	    = 'NoCat';
+@REQUIRED   = qw( 
     Database DB_User DB_Passwd UserTable 
     UserIDField UserPasswdField UserAuthField 
 );
@@ -19,9 +18,6 @@ my @Required_Parameters = qw(
 sub new {
     my $class = shift;
     my $self = $class->SUPER::new( @_ );
-
-    $self->log( 1, "NoCat::User instantiated without required $_ parameter" )
-	for ( grep !$self->{$_}, @Required_Parameters );
 
     $self->{Data} ||= {};
     

@@ -2,8 +2,13 @@
 <head><title>NoCat login agent</title></head>
 <body>
 <p>
-    Keep this window open, and your authentication will automatically be renewed every $timeout seconds.
+    Keep this window open, and your authentication will automatically be renewed within $timeout seconds.
     This window may be safely minimized.
+</p>
+<p align="center">
+    <form method="post" action="$logout">
+	<input type="submit" value="Logout">
+    </form>
 </p>
 </body>
 </html>

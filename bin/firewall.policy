@@ -1,12 +1,31 @@
 #!/bin/sh
 
 INTERNAL=eth1
-EXTERNAL=eth0
-LOCAL_NET=10.0.1.0
+EXTERNAL=tun0
+LOCAL_NET=172.16.1.0
 LOCAL_MASK=255.255.255.0
-AUTHSERV=208.201.239.9
 
+AUTHSERV=192.168.0.1
+DNSSERV=208.201.239.31
+
+# Enable IP forwarding.
+#
 echo "1" > /proc/sys/net/ipv4/ip_forward
+
+# Load alllll the kernel modules we need.
+#
+modprobe ipt_REDIRECT 
+modprobe ipt_MASQUERADE 
+modprobe ipt_MARK 
+modprobe ipt_REJECT 
+modprobe ipt_TOS   
+modprobe iptable_mangle
+modprobe iptable_filter
+modprobe iptable_nat 
+modprobe ip_nat_ftp
+modprobe ip_conntrack
+modprobe ipt_mac
+modprobe ipt_state
 
 #
 # By default, accept everything
@@ -27,34 +46,36 @@ iptables -t mangle -F
 #
 iptables -A PREROUTING -i $INTERNAL -t mangle -j MARK --set-mark 4
 
-###iptables -A FORWARD -m mark --mark 4 -j 
-
-
-#
-# Accept DNS traffic to the internal
-#
-#iptables -t nat -A PREROUTING -p tcp -i $INTERNAL -d $LOCAL_NET/$LOCAL_MASK --dport 53 -j ACCEPT
-#iptables -t nat -A PREROUTING -p udp -i $INTERNAL -d $LOCAL_NET/$LOCAL_MASK --dport 53 -j ACCEPT
-
 #
 # Masquerade anything that isn't restricted.
 #
 iptables -t nat -A POSTROUTING -o $EXTERNAL -s $LOCAL_NET/$LOCAL_MASK -m mark --mark 1 -j MASQUERADE
 iptables -t nat -A POSTROUTING -o $EXTERNAL -s $LOCAL_NET/$LOCAL_MASK -m mark --mark 2 -j MASQUERADE
 iptables -t nat -A POSTROUTING -o $EXTERNAL -s $LOCAL_NET/$LOCAL_MASK -m mark --mark 3 -j MASQUERADE
-#iptables -t nat -A POSTROUTING -o $EXTERNAL -s $LOCAL_NET/$LOCAL_MASK -m mark --mark 4 -j MASQUERADE
 iptables -t nat -A POSTROUTING -o $EXTERNAL -s $LOCAL_NET/$LOCAL_MASK -m mark --mark 4 -d $AUTHSERV -j MASQUERADE
 
 #
 # Redirect outbound non-auth web traffic to the local gateway process
 #
 iptables -t nat -A PREROUTING -m mark --mark 4 -p tcp --dport 80 -d ! $AUTHSERV -j REDIRECT --to-port 5280
+iptables -t nat -A PREROUTING -m mark --mark 4 -p tcp --dport 443 -d ! $AUTHSERV -j REDIRECT --to-port 5280
 
 
 # Accept traffic on the internal
 #
 iptables -t nat -A PREROUTING -i $INTERNAL -j ACCEPT
 
+#
+# Accept DNS traffic from the internal to DNSSERV if defined,
+# otherwise Masquerade to the local host (as you must be running a caching server).
+#
+if [ -z $DNSSERV ]; then
+  iptables -t nat -A PREROUTING -p tcp -i $INTERNAL -d $LOCAL_NET/$LOCAL_MASK --dport 53 -j ACCEPT
+  iptables -t nat -A PREROUTING -p udp -i $INTERNAL -d $LOCAL_NET/$LOCAL_MASK --dport 53 -j ACCEPT
+else 
+  iptables -t nat -A POSTROUTING -p tcp -o $EXTERNAL -d $DNSSERV --dport 53 -j MASQUERADE
+  iptables -t nat -A POSTROUTING -p udp -o $EXTERNAL -d $DNSSERV --dport 53 -j MASQUERADE
+fi
 
 #
 # Log all of these.

@@ -1,10 +1,11 @@
 package NoCat::Peer;
 
-use NoCat;
+use NoCat qw( PUBLIC );
 use strict;
-use vars qw( @ISA );
+use vars qw( @ISA @REQUIRED );
 
-@ISA = 'NoCat';
+@REQUIRED   = qw( LoginTimeout );
+@ISA	    = 'NoCat';
 
 sub new {
     my $class = shift;
@@ -71,15 +72,22 @@ sub token {
 
 sub user {
     my ( $self, $user ) = @_;
+    # $self->log( 9, "Peer::user called: $self=[$self->{User}] (@_)" );
     $self->{User} = $user if defined $user;
     return $self->{User};
 }
 
 sub status {
-    my ( $self, $status, $user ) = @_;
+    my ( $self, $status ) = @_;
     $self->{Status} = $status if defined $status;
+    return( $self->{Status} || "" );
+}
+
+sub class {
+    my ( $self, $class, $user ) = @_;
+    $self->{Class} = $class if defined $class;
     $self->user( $user ) if defined $user;
-    return $self->{Status};
+    return( $self->{Class} || PUBLIC );
 }
 
 1;

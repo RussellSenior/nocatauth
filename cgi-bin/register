@@ -12,12 +12,19 @@
 ##
 ###
 
+use lib '/usr/local/nocat/lib'; # or wherever.
 use NoCat;
 use strict;
 
 my $authserv	= NoCat->auth_service( ConfigFile => $ENV{NOCAT} );
 my $cgi		= $authserv->cgi;
 my %p		= $cgi->Vars;
+
+$authserv->check_config(qw(
+    RegisterForm RegisterGreeting RegisterUserExists RegisterBadUser
+    RegisterBadPass RegisterPassNoMatch RegisterFields RegisterSuccess
+    UserIDField UserPassField
+));
 
 sub respond { $authserv->display( RegisterForm => @_ ) }
 

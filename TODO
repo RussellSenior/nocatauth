@@ -1,0 +1,39 @@
+Ready but untested:
+
+* Test gateway behind NAT with port forwarding
+
+* Test owner lists
+
+* Spiffy up bin/access (actually support multiple classes of service)
+
+* Add firewall rules for DNS
+
+* Better checking of ConfigFile locations and directive sanity
+
+Tentative TODO list (more or less in order of importance):
+
+* Better expiration of auth tokens (to avoid multiple login confusion and potential resource attack).
+
+* Better error reporting from gateway to authservice during notification.
+
+* More configurable logging for bin/gateway
+
+* DOCS
+
+* rc script to start bin/gateway? and load kernel modules!!!
+
+* Sanity checking of timeout values, etc. Esp. try to prevent g/w from blocking forever.
+
+* Setuid firewall script wrapper (in C)
+
+* Ping timeout option (instead of or in addition to repeating SSL auth)
+
+* User-definable timeout option
+
+* Apply for SSL cert
+
+* User management tools
+
+* Auth service initiated authentication 
+
+* Bundle::NoCat for CPAN?

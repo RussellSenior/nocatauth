@@ -3,4 +3,7 @@
 use NoCat;
 
 my $server = NoCat->gateway( ConfigFile => $ENV{NOCAT} );
+
+$server->firewall->reset;
+
 $server->run;

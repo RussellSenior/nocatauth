@@ -1,25 +1,43 @@
 package NoCat;
 
+use constant PERMIT => "Permit";
+use constant DENY   => "Deny";
+use constant PUBLIC => "Public";
+use constant MEMBER => "Member";
+use constant OWNER  => "Owner";
+use constant LOGOUT => "/logout";
+
+use Exporter;
+use vars qw( @ISA @EXPORT_OK *FILE );
 use strict;
-use vars qw( *FILE );
+
+@ISA	    = "Exporter";
+@EXPORT_OK  = qw( PERMIT DENY PUBLIC MEMBER OWNER LOGOUT );
 
 my %Defaults = (
+    ### Gateway server networking values.
+    GatewayPort	    => 5280, 
     PollInterval    => 10,
     ListenQueue	    => 10,
+
+    ### No. of seconds before logins/renewals expire.
     LoginTimeout    => 300,
+
+    ### Fraction of LoginTimeout to loiter before renewing.
+    RenewTimeout    => .75,
+
+    ### Authservice networking values.
     NotifyTimeout   => 30,
-    GatewayPort	    => 5280, 
+
+    ### Default log level.
     Verbosity	    => 5
 );
 
-sub import {
+BEGIN {
     $SIG{__WARN__} = sub { NoCat->log( 0, @_ ) };
 }
 
 sub new {
-    require Carp;
-    local $SIG{__WARN__} = \&Carp::cluck;
-
     my $class = shift;
     my @default = %Defaults;
     my %args = @_;
@@ -30,7 +48,15 @@ sub new {
 
     my $self = bless { @default, %args }, ref( $class ) || $class;
 
-    $self->read_config( delete $self->{ConfigFile} ) if $self->{ConfigFile};
+    # Attempt to find nocat.conf if ConfigFile is provided but undefined.
+    # (i.e. the NOCAT environment variable was never set.)
+    #
+    if ( exists $self->{ConfigFile} ) {
+	$self->{ConfigFile} ||= '/usr/local/nocat/nocat.conf';
+	$self->read_config( delete $self->{ConfigFile} );
+    }
+
+    $self->check_config;
     $self;
 }
 
@@ -81,11 +107,38 @@ sub deparse {
 
 sub read_config {
     my ( $self, $filename ) = @_;
-    my $file	= $self->file( $filename );
+
+    die "No config file specified! Does \$NOCAT point to your nocat.conf?\n"
+	unless $filename;
+
+    my $file	= $self->file( $filename ) 
+	or die "Can't read config file $filename: $!";
+
     my %args	= $self->parse( $file );
 
     $self->{$_} = $args{$_} for (keys %args);
     return $self;
+}
+
+sub check_config {
+    my ( $self, @required ) = shift;
+    my $class = ref( $self );
+
+    unless ( @required ) {
+	# Try to get the @NoCat::Foo::REQUIRED list.
+	no strict 'refs';
+	my $req = "$class\::REQUIRED";
+	@required = @$req if @$req;
+    }
+
+    return not @required unless @required;
+
+    my @missing = grep !defined( $self->{$_} ), @required;
+
+    $self->log( 0, "Missing $_ directive required for $class object" )
+	for @missing;
+
+    return not @missing;
 }
 
 sub log {
