@@ -38,8 +38,8 @@ ipchains -X
 # approved ip addr, it will fall through the auth chain to the noauth
 # chain, which has the redirection to the nocatauth port rules.
 #
-ipchains -N auth
-ipchains -N noauth
+ipchains -N auth 
+ipchains -N noauth 
 
 #
 # Set the default packets to fw mark 4, or 'denied'.
@@ -53,24 +53,46 @@ ipchains -N noauth
 # The current service classes by fwmark are:
 #
 #  1: Owner
-#  2: Co-op
 #  3: Public
 #  4: Denied
 #
 # NOTE: IPChains has built-in support for 'marking', but doesn't make
 # any decisions based on it.
+#
+# Accept DNS traffic from the internal to DNSAddr if defined,
+# otherwise Masquerade to the local host (as you must be running a caching server).
+#
+# NOTE: is this correct or does the dns stuff need to be there for
+# non-auth clients as well?
+#
+
+if [ -z $DNSAddr ]; then
+  ipchains -A input -i ${InternalDevice} -p tcp -d ${LocalNetwork} 53 -j ACCEPT
+  ipchains -A input -i ${InternalDevice} -p udp -d ${LocalNetwork} 53 -j ACCEPT
+else 
+  ipchains -A input -i ${InternalDevice} -p tcp -d ${DNSAddr} 53 -j ACCEPT
+  ipchains -A input -i ${InternalDevice} -p udp -d ${DNSAddr} 53 -j ACCEPT
+fi
+
 
 #
-# For all other IP packets, simply map to the external interface.
+#For all other IP packets, simply map to the external interface.
 #
-ipchains -A forward -s ${LocalNetwork} -d 0.0.0.0/0 -i ${ExternalDevice} -p all -j MASQ
+
 
 #
 # This is the only rule for the auth chain at initialization. When a
 # user is accepted, a rule for that user will need to be inserted into
 # this chain with target RETURN.
 #
-ipchains -A auth -i ${InternalDevice} -p all -j noauth
+
+ipchains -A input -i ${LocalNetwork} -p all -j auth 
+
+ipchains -A input -i ${InternalDevice} -p all -j noauth 
+
+
+
+ipchains -A forward -s ${LocalNetwork} -d 0.0.0.0/0 -i ${ExternalDevice} -p all -j MASQ
 
 #
 # Redirect outbound non-auth web traffic to the local gateway process
@@ -80,21 +102,6 @@ ipchains -A noauth -i ${InternalDevice} -p tcp -d 0.0.0.0/0 80 -j REDIRECT ${Gat
 ipchains -A noauth -i ${InternalDevice} -p tcp -d 0.0.0.0/0 443 -j REDIRECT ${GatewayPort}
 ipchains -A noauth -i ${InternalDevice} -p all -l -j REJECT
 
-
-#
-# Accept DNS traffic from the internal to DNSAddr if defined,
-# otherwise Masquerade to the local host (as you must be running a caching server).
-#
-# NOTE: is this correct or does the dns stuff need to be there for
-# non-auth clients as well?
-#
-if [ -z $DNSAddr ]; then
-  ipchains -A input -i ${InternalDevice} -p tcp -d ${LocalNetwork} 53 -j ACCEPT
-  ipchains -A input -i ${InternalDevice} -p udp -d ${LocalNetwork} 53 -j ACCEPT
-else 
-  ipchains -A input -i ${InternalDevice} -p tcp -d ${DNSAddr} 53 -j ACCEPT
-  ipchains -A input -i ${InternalDevice} -p udp -d ${DNSAddr} 53 -j ACCEPT
-fi
 
 #
 # Lock down more ports for public users, if specified.
@@ -123,14 +130,14 @@ if [ "$IncludePorts" ]; then
   #
   # Enable all ports in IncludePorts
   #
-  #echo "Enabling public access to these ports: $IncludePorts"
+  echo "Enabling public access to these ports: $IncludePorts"
   
   for port in $IncludePorts; do
     ipchains -A input -i ${InternalDevice} -p tcp -d 0.0.0.0/0 ${port} -j ACCEPT
   done
 
-  # Always permit access to the GatewayPort (or we can't logout)
-  #
+  #Always permit access to the GatewayPort (or we can't logout)
+  
   ipchains -A input -i ${InternalDevice} -p tcp --dport ${GatewayPort} -j ACCEPT
   
   # ...and disable access to the rest.
@@ -141,7 +148,7 @@ elif [ "$ExcludePorts" ]; then
   #
   # If ExcludePorts has entries, simply deny access to them.
   #
-  #echo "Denying public access to these ports: $ExcludePorts"
+  echo "Denying public access to these ports: $ExcludePorts"
 
   for port in $ExcludePorts; do
     ipchains -A input -i ${InternalDevice} -p tcp --dport ${port} -j DENY

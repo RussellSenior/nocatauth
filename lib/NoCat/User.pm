@@ -62,6 +62,7 @@ sub data {
 #
 sub id {
     my $self = shift;
+    $self->{Data}{ $self->{UserIDField} } = shift if @_;
     return $self->{Data}{ $self->{UserIDField} };
 }
 
@@ -69,6 +70,7 @@ sub id {
 #
 sub passwd {
     my $self = shift;
+    $self->set_password( @_ ) if @_;
     return $self->{Data}{ $self->{UserPasswdField} };
 }
 

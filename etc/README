@@ -11,3 +11,10 @@ nocat.schema	    - Sample SQL schema for Auth Service user database.
 
 vtund.conf	    - Sample vtun configuration for tunneling gateway
 		      traffic past a firewall.
+
+portforward.sample  - Some quick firewall rules (ipmasqadm and iptables) to
+                      enable port 5280 forwarding
+
+group
+groupadm            } Dummy files for Passwd auth.  Use admintool to update.
+passwd

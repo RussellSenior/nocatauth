@@ -221,7 +221,7 @@ sub instantiate {
 	$config = $self;	
     } else {
 	# Gotta instantiate a bootstrap object to load up the config data.
-	$config = NoCat->new( @_ );
+	$config = __PACKAGE__->new( @_ );
 	$super  = $self;
     }
 

@@ -1,5 +1,25 @@
-echo "NAT table:"
+#!/bin/sh
+##
+# dump.fw: show the status of all iptables.
+##
+
+PATH=/sbin:/usr/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/local/bin
+export PATH
+
+echo ">>>>> NAT table: <<<<<"
+echo
 iptables -t nat -L -n
 echo
-echo "Mangle table:"
+echo
+echo ">>>>> Mangle table: <<<<<"
+echo
 iptables -t mangle -L -n
+echo
+echo
+echo ">>>>> Filter table: <<<<<"
+echo
+iptables -t filter -L -n
+
+#
+# Ende
+#

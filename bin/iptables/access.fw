@@ -8,21 +8,21 @@ $ENV{PATH}="/sbin:/usr/sbin:/usr/local/sbin";
 
 sub panic {
   print shift;
-  die "Usage: $0 [permit|deny] [MAC] [IP] [Class]\n\nExample: $0 permit 00:02:2d:aa:bb:cc 10.0.0.105 1\n";
+  die "Usage: $0 [permit|deny] [MAC] [IP] [Class]\n\nExample: $0 permit 00:02:2d:aa:bb:cc 10.0.0.105 member\n";
 }
 
 panic("FATAL: Not enough parameters!\n") unless @ARGV >= 4;
 
 my ( $action, $mac, $ip, $class ) = @ARGV;
-my $cmd = "";
 
-$action = { permit => "-A", deny => "-D" } -> {lc $action}
+my $cmd = { permit => "-A", deny => "-D" } -> {lc $action}
     or panic("FATAL: Bad action: $action!\n");
 
-$class = { owner => 1, member => 2, public => 3 } -> {lc $class}
+my $mark = { owner => 1, member => 2, public => 3 } -> {lc $class}
     or panic("FATAL: Bad class: $action!\n");
 
-exec("iptables $action PREROUTING -t mangle -m mac --mac-source $mac -s $ip -j MARK --set-mark $class");
+system("iptables -t mangle $cmd PREROUTING -m mac --mac-source $mac -s $ip -j MARK --set-mark $cmd");
+system("iptables -t filter $cmd FORWARD -d $ip -j ACCEPT");
 
 #
 # Ende

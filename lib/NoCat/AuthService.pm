@@ -55,8 +55,6 @@ sub gateway_ip {
     my $self = shift;
     my $gw   = $self->cgi->remote_host;
 
-    return $gw;
-
     # If gateway is running on the same subnet as the auth server, the IP
     # of the client machine will be recieved instead of that of the gateway.
     # If LocalGateway is defined in nocat.conf, this block will check for

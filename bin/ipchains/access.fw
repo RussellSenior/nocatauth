@@ -1,9 +1,9 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
 
 ##
 # VERY simple access control script for leeenux
 ##
-use strict;
+#use strict;
 use vars qw( *CHAIN );
 
 $ENV{PATH}="/sbin:/usr/sbin:/usr/local/sbin";
@@ -13,18 +13,19 @@ sub panic {
   die "Usage: $0 [permit|deny] [MAC] [IP] [Class]\n\nExample: $0 permit 00:02:2d:aa:bb:cc 10.0.0.105 1\n";
 }
 
-panic("FATAL: Not enough parameters!\n") unless @ARGV >= 5;
+panic("FATAL: Not enough parameters!\n") unless @ARGV >= 4;
 
 my ( $action, $mac, $ip, $class ) = @ARGV;
 
-$action = { permit => "-I", deny => "-D" } -> {lc $action}
+my $cmd = { permit => "-I", deny => "-D" }  -> {lc $action}
     or panic("FATAL: Bad action: $action!\n");
 
-$class = { owner => 1, member => 2, public => 3 } -> {lc $class}
-    or panic("FATAL: Bad class: $action!\n");
+# my $mark = { owner => "1", member => "2", public => "3" }  -> {lc $class}
+#    or panic("FATAL: Bad class: $class!\n");
 
 if ($action eq "-I") {
-  exec("ipchains $action auth -i $ENV{InternalInterface} -s $ip -j RETURN");
+  print "ipchains $cmd noauth -i $ENV{InternalDevice} -s $ip -j RETURN\n";
+  exec("ipchains $cmd noauth -i $ENV{InternalDevice} -s $ip -j RETURN");
 } else {
   open (CHAIN, "ipchains -nL auth --line-numbers |") || panic("FATAL: reading ipchains rules: $!");
   while (<CHAIN>) {

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 export PATH=$PATH:/sbin:/usr/sbin:/usr/local/sbin
 
@@ -15,8 +15,17 @@ elif [ $(which ipchains 2>/dev/null) ]; then
     echo ipchains
 
 #
-# Or ipfilter (e.g. *BSD)?
+# Or ip_filter (e.g. *BSD, Solaris, HP-UX, etc)?
+# <http://www.ipfilter.org/>
 #
 elif [ $(which ipf 2>/dev/null) ]; then
-    echo ipfilter
+ipf_running="`ipf -V | grep 'Running' | awk '{print $2}'`";
+        if [ "$ipf_running" = "yes" ]; then
+                echo "ipfilter"
+        else
+		echo ""
+                echo "ERROR: ip_filter appears to exist, but we're not postive that it's running"
+		echo "1. You must be root for us to verify this"
+                echo "2. Check that it's compiled in your kernel (either staticlly or a loaded module)"
+        fi
 fi

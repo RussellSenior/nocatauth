@@ -1,81 +1,132 @@
 ###
 ## NoCatAuth installation guide
 ##
-ver 1.2 -- 8/15/01 
+Last updated: 12/30/01 
 
+This is the quick-and-dirty guide to getting a wireless gateway running with
+the NoCatAuth system.  If you simply want to "run a NoCat node", this should
+get you going.
+
+For detailed instructions on how to set up your own Authentication Service
+(and a good overall view of how this whole thing works), check out
+Introduction.txt and AuthService.txt in the doc/ directory.
 
 ###
-## 6 Easy Steps to Installing Your Very Own Captive Portal.
+## Installing a Gateway
 ##
 
-Running a captive portal requires root permissions on the gateway machine.
+For the terminally impatient
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+Check your prerequisites as below.  Then, try the following:
+
+$ su -
+# tar zvxf NoCatAuth-x.xx.tar.gz
+# cd NoCatAuth-x.xx
+# make gateway
+# cd /usr/local/nocat
+# vi nocat.conf
+# bin/gateway
+
+If you see something to the effect of:
+
+[2001-12-28 20:38:27] Resetting firewall.
+[2001-12-28 20:38:27] Binding listener socket to  0.0.0.0
+
+...then you're up!  Watch the progress in 'nocat.log', and give it a try. 
+
+
+Step by step
+-=-=-=-=-=-=-
+
+Currently, the gateway is designed to run on a standalone box.  If you 
+have other firewall rules defined, THEY WILL BE OVERWRITTEN by the gateway
+process when it starts.  See the end of this file for how to get around
+this, but please first consider running the gateway on its own machine.
+
+Also, remember that running a gateway requires root permissions.
+
 
 1. Make sure you have the prerequisites installed:
     
     * Linux 2.4.x with iptables. You'll find a sample kernel configuration
 	in etc/linux-2.4.config. Support for other OSes is planned, 
-	especially FreeBSD. Patches welcome.
+	especially FreeBSD. Support for ipchains is beta, and is currently
+        broken.  Patches welcome.
 
     * gpgv, a PGP signature verifier. gpgv comes with the gnupg package, 
-	which can be had from http://www.gnupg.org/download.html.
+	which can be downloaded from http://www.gnupg.org/download.html
 
     * You'll probably also want to run dhcpd on this machine, but DHCP
 	can in some cases be served from your access point or elsewhere on 
-	your local network. Make sure that, if you're using external DNS,
-	that your dhcpd hands out the same DNS address listed in nocat.conf.
+	your local network. 
 
-    * If you want to try the (experimental) bandwidth throttling rules,
-        you'll also need a copy of the 'tc' tool from the iproute2 package.
-        Get it at ftp://ftp.inr.ac.ru/ip-routing/.
+    * If you want to try the bandwidth throttling rules, you'll also need a
+        copy of the 'tc' tool from the iproute2 package.  Get it at
+        ftp://ftp.inr.ac.ru/ip-routing/
 
+    * Optionally (and recommended), a local caching DNS server.
+    
 2. Unpack the NoCatAuth tarball. You probably already did this if you're
 reading this file.
 
-    $ tar xvfz NoCatAuth-x.xx.tar.gz
+    $ tar zvxf NoCatAuth-x.xx.tar.gz
 
-3. Read the README.
+3. Edit the Makefile, if necessary. The only real option at present is
+INST_PATH, which determines where NoCatAuth gets installed to.  The default
+is '/usr/local/nocat', so if that's okay with you, you can skip this step.
 
-4. Edit the Makefile, if necessary. The only real option at present is
-INST_PATH, which determines where NoCatAuth gets installed to. Defaults 
-to '/usr/local/nocat', so if that's okay with you, you can skip this step.
+4. From the NoCatAuth directory, run 'make gateway'.  This will install the
+important pieces of the gateway software.
 
-5. From the NoCatAuth directory, run 'make gateway'. This will install the
-important pieces of the captive portal software.
-
-6. Edit the /usr/local/nocat/nocat.conf file to suit.
+5. Edit the /usr/local/nocat/nocat.conf file to suit.  These parameters are
+required:
     
     * InternalDevice must be set to the interface name of your wireless card,
-	or the ethernet card that talks to your AP.
+	or the ethernet card that talks to your AP (e.g., eth0.  See
+	docs/Introduction.txt for more details.)
 
     * ExternalDevice must be set to the name of the network interface
-	that talks to the Internet, e.g. the ethernet card connected to your
-	DSL or cable modem.
+	that talks to the Internet. (probably the ethernet card connected to
+	your DSL or cable modem, or your dialup device: eth1, ppp0, etc.)
 
     * LocalNetwork needs to be set to the network address and mask of your
-	internal (e.g. wireless) network. This typically takes the form 
+	internal (wireless) network. This typically takes the form
 	111.222.333.444/255.255.255.0, or 11.22.33.44/24, etc.
 
-    * DNSAddr needs to be set to the same domain name server address that your 
-	DHCP server hands out, if and only if you're using a DNS outside your
-	local network (as specified above). Otherwise, if you have an internal
-	DNS, leave this option commented out.
+    * DNSAddr needs to be set to the same domain name server address that
+	your DHCP server hands out, if and only if you're using a DNS
+	outside your LocalNetwork (as specified above). Otherwise, if you're
+	using a caching DNS server on the gateway or anywhere else on your
+	wireless network, leave this option commented out.
+
+    * GatewayMode toggles between Open and Captive mode.  An Open gateway
+        just displays the html file specified in SplashForm for acceptance.
+        Captive mode implements the whole authentication process.  If you
+        want people to have to login, use Captive mode.
 
     * AuthServiceAddr, AuthServiceURL, and LogoutURL depend on your chosen
-	auth service. Check with them for these values.
+	auth service (assuming you're using Captive as your GatewayMode.)
+	Check with your local auth service admins for these values (or leave
+	the defaults to use our auth service.)
 
     * IncludePorts and ExcludePorts can be set to restrict ports that public
-        users can access (i.e., to disallow email traffic.)  If you use
+        users can access (say, to disallow email traffic.)  If you use
         IncludePorts, only the ports listed will be allowed.  Using
         ExcludePorts makes all ports available *except* the ports listed. 
         Currently, only TCP ports are supported.
 
-
 ###
-## Starting the NoCatAuth captive portal.
+## Starting the gateway
 ##
 
-You should now be able to start the portal by running
-/usr/local/nocat/bin/gateway as root.  If it doesn't start cleanly, read on.
+You should now be able to start the portal by running bin/gateway as root. 
+You'll see a message to the effect of:
+
+[2001-12-28 20:38:27] Resetting firewall.
+[2001-12-28 20:38:27] Binding listener socket to  0.0.0.0
+
+If it doesn't start cleanly, read on.
 
 The portal needs to know where to find (a) its perl libraries, and (b) its
 nocat.conf configuration file. NoCatAuth tries to figure out these values
@@ -88,10 +139,10 @@ shell environment before running the gateway script:
     $ export PERL5LIB=/path/to/nocat/lib:$PERL5LIB
     $ export NOCAT=/path/to/nocat/nocat.conf
 
-Utilities like iptables, modprobe, and gpgv need to be in your $PATH somewhere
-(if they aren't already). For example:
+Utilities like iptables, modprobe, and gpgv need should be in your $PATH
+somewhere (if they aren't already). For example:
 
-    $ export PATH=$PATH:/sbin:/usr/sbin
+    $ export PATH=$PATH:/sbin:/usr/sbin:/usr/local/sbin
 
 Starting the gateway is then as simple as: (from a root prompt)
 
@@ -111,25 +162,25 @@ Congratulations.  You're now running a gateway.
 
 
 ###
-## Running Your Own Auth Service.
+## Important Notes for the Gateway
 ##
 
-If you're just running a wireless node, you can skip this section.
+* Make sure that your dhcp server hands out the same DNS address listed in
+  nocat.conf (if you're using external DNS).  Otherwise, your wireless
+  clients won't be able to resolve hostnames.
 
-NoCatAuth needs gpg from gnupg.org, and the Digest::MD5 and DBI modules from
-CPAN. You'll also need to install the appropriate DBD modules for your
-database. We use mysql, but the SQL isn't complex, and PostgreSQL, or indeed
-almost any other relational database should work.  You'll need a database to 
-store your user accounts -- you can find table schemas in etc/nocat.schema. 
-You'll need an Apache installation with SSL working. The nocat.conf options
-should be fairly self-explanatory. You can find NoCat-specific Apache 
-configuration in etc/authserv.conf. You'll need to make the cgi-bin scripts
-accessible from somewhere.
+* We have designed this software to be run on very modest hardware (a 486/50
+  with 32MB ram should be plenty.)  Please consider running the gateway on a
+  dedicated machine before simply installing it on your existing firewall. 
 
-Work is actively in progress to integrate a single shared membership database
-for the various wireless groups that have expressed an interest in
-participating. If you're starting a community wireless network of your own,
-and might be interested in roaming agreements with other groups, drop us a
-line at authservice@nocat.net.
+  IP security is a complicated enough already...  NoCat adds to the
+  complexity by introducing dynamic firewall rules that are triggered by
+  completely anonymous users (via the wireless.) While no security system is
+  foolproof, risk can be minimized by isolating your wireless node from the
+  rest of your network.
+
+  Please read docs/Introduction.txt (and a good book on firewalls) for more
+  details.
+
 
 ### Thanks for using NoCatAuth. GOOD LUCK! PATCHES WELCOME!

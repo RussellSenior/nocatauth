@@ -37,8 +37,13 @@ sub new {
     my $class	= ref( $self ) || $self;
 
     if ( $class eq __PACKAGE__ ) {
-	return $self->instantiate( "DataSource", @_ );
+	# We've been called as NoCat::Source->new, which means we need to
+	# load nocat.conf and figure out which data source plugin we're 
+	# supposed to use.
+	return $self->instantiate( DataSource => @_ );
     } else {
+	# We've been called as NoCat::Source::Foo->new, so pass arguments
+	# to NoCat->new and return.
 	return $self->SUPER::new( @_ );
     }
 }

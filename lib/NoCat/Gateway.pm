@@ -13,8 +13,16 @@ sub new {
     my $self	= shift;
     my $class	= ref( $self ) || $self;
 
-    return $self->instantiate( "GatewayMode", @_ ) if $class eq __PACKAGE__;
+    # We've been called as NoCat::Gateway->new, which means we need to
+    # load nocat.conf and figure out which gateway plugin we're 
+    # supposed to use.
+    #
+    return $self->instantiate( GatewayMode => @_ )
+	if $class eq __PACKAGE__;
     
+    # We've been called as NoCat::Source::Foo->new, so pass arguments
+    # to NoCat->new and get the new object.
+    #
     $self = $class->SUPER::new( @_ );
 
     $self->{Request}	||= {};

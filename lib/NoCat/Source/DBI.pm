@@ -127,10 +127,12 @@ sub drop_group_member {
 }
 
 sub update_group_member {
-    my ( $self, $group, $user ) = @_;
+    my ( $self, $group, $user, $admin ) = @_;
     $self->db->do(qq/
 	update $self->{GroupTable} set $self->{GroupAdminField} = ?
-	    where $self->{UserIDField} = ? /, {}, $group->id, $user 
+	    where $self->{GroupIDField} = ? 
+	    and $self->{UserIDField} = ? /, 
+	    {}, $admin, $group->id, $user
     );
 }
 

@@ -43,7 +43,7 @@ sub fetch {
     my ( $self, $id ) = @_;
     $self->id( $id ) if $id;
 
-    my $users = $self->source->fetch_users_by_group( $self->id );
+    my $users = $self->source->fetch_users_by_group( $self );
     if ( $users ) {
 	%{$self->{Former}} = %{$self->{Users}} = %$users;
     } 
@@ -52,23 +52,22 @@ sub fetch {
 
 sub store {
     my $self	= shift;
-    my $group	= $self->id;
     my $member	= $self->{Users};
     my $former	= $self->{Former};
 
     while ( my ($user, $status) = each %$member ) {
 	if ( exists $former->{$user} ) {
 	    if (  $former->{$user} ne $status ) {
-		$self->source->update_group_member( $group, $user, $status );
+		$self->source->update_group_member( $self, $user, $status );
 		$former->{$user} = $status;
 	    }
 	} else {
-	    $self->source->add_group_member( $group, $user, $status );
+	    $self->source->add_group_member( $self, $user, $status );
 	}
     }
 
     while ( my ($user, $status) = each %$former ) {
-	$self->source->drop_group_member( $group, $user )
+	$self->source->drop_group_member( $self, $user )
 	    unless exists $member->{$user};
     }
     
@@ -86,6 +85,12 @@ sub drop {
     my ( $self, $user ) = @_;
     delete $self->{Users}{$user->id};
     return $self;
+}
+
+sub admin {
+    my ( $self, $user, $admin ) = @_;
+    $self->{Users}{$user->id} = $admin if defined $admin;
+    return $self->{Users}{$user->id};
 }
 
 1;

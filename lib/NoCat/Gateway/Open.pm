@@ -41,11 +41,11 @@ sub handle {
 sub serve {
     my ( $self, $peer, $request ) = @_;
 
-    return $self->not_found( $peer => $request )
-	unless $request->{URI} =~ /([^\/]+)\.([^\.]+)$/go;
+    my $file = "$self->{DocumentRoot}/$request->{URI}";
+    $file =~ s/\.+/./gos; # Prevent ../ type whatnot.
 
-    my $file = "$self->{DocumentRoot}/$1.$2";
-    my $ext  = $MIME{$2};
+    my $ext = ( $file =~ /([^\.\/]+)$/gos )[0]; # Try to get the file extension?
+    $ext = $MIME{$ext};
 
     $self->log( 8, "Attempting to serve $file" );
 
@@ -54,7 +54,7 @@ sub serve {
 	unless $ext;
 
     return $self->not_found( $peer => $request )
-	unless my $size = -s $file;
+	unless -r $file and -f $file and my $size = -s $file;
 
     $peer->socket->print( 
 	"HTTP 200 OK\r\n",
@@ -113,7 +113,7 @@ sub verify {
 	or $self->log( 3, "Trouble reading from peer: $!" );
 
     $url = $self->url_decode( $1 )
-	if $line =~ /^redirect=([^&]+)/imo;
+	if $line =~ /(?:^|&)redirect=([^&]+)/o;
     
     if ( $url ) {
 	$self->log( 5, "Opening portal for " . $socket->peerhost . " to $url" );

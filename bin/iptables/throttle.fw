@@ -1,10 +1,15 @@
+#!/bin/sh
 ##
 # 
-# The default bandwidth policy, established at boot time
+# throttle.fw: Set the bandwidth policy, based on FWMARK
 #
-# --RJF 7/9/01
+# Set your limits in the defines at the top.  Someday this will be
+# integrated into the nocat.conf...
 #
 ##
+
+PATH=/sbin:/usr/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/local/bin
+export PATH
 
 TOTAL_DOWN=3mbit
 TOTAL_UP=384kbit

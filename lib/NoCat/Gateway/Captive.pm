@@ -90,11 +90,12 @@ sub verify {
 sub logout {
     my ( $self, $peer ) = @_;
     my $sock = $peer->socket;
+    my $url  = $self->format( $self->{LogoutURL} );
 
     $self->log( 5, "User " . ($peer->user || $peer->ip) . " logging out" );
     $self->deny( $peer );
 
-    $self->redirect( $peer => $self->{LogoutURL} );    
+    $self->redirect( $peer => $url );    
 }
 
 sub capture {
@@ -118,7 +119,8 @@ sub capture {
     # Smile for the GET URL.
     ( $token, $mac, $request ) = $self->url_encode( $peer->token, $mac, $request );
 
-    $self->redirect( $peer, "$self->{AuthServiceURL}?token=$token&mac=$mac&redirect=$request" );
+    my $url = $self->format( $self->{AuthServiceURL} );
+    $self->redirect( $peer, "$url?token=$token&mac=$mac&redirect=$request" );
 }
 
 1;

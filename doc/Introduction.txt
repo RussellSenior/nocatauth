@@ -1,0 +1,7 @@
+
+This document is in progress.  Please check back later.
+
+The NoCatAuth package is comprised two major components: a centralized
+Authentication system (or Auth system for short), and any number of wireless
+gateways that communicate with the Auth system.
+

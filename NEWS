@@ -1,0 +1,135 @@
+Release Notes:
+==============
+
+10/25/2001 (v0.60)
+
+Big update:
+
+* Pluggable authentication sources: NoCatAuth now (theoretically)
+  supports any kind of dynamic firewall.
+
+* ipchains support (and a start on ipfilter support)
+
+* User auth code rewritten
+
+* LocalGateway can now be defined in nocat.conf.  This means 
+  that you too can run the Auth system and a Gateway on the same
+  Machine!  (not that we'd recommend it, but so many people asked
+  for it, so here you are.  =)
+
+-=-=-=-=-
+
+09/25/2001 (v0.52)
+
+Forgot to export ANY in NoCat.pm.  Fixed.
+
+RJF
+
+-=-=-=-=-
+
+09/24/2001 (v0.51)
+
+Open Portal mode is now fixed for browsers that return odd http header data. 
+This caused a 'looping' issue where users couldn't escape the splash page in
+some circumstances.
+
+Also, the magical "ANY" group can now provide member class access to any
+member of any group.  Specify ANY in the TrustedGroups directive of the
+nocat.conf (or leave it blank) and members of any group will be accepted
+into the co-op class.
+
+RJF
+
+-=-=-=-=-
+
+09/21/2001 (v0.50)
+
+Moving right along...
+
+RJF
+
+-=-=-=-=-
+
+09/15/2001 (v0.45)
+
+Oops.  Quick bugfix: the revised NoCat.pm wasn't checked into 
+v0.43 (it was a laaaaaaate nite.)  It's all better now.
+
+RJF
+
+-=-=-=-=-
+
+09/15/2001 (v0.43)
+
+Support for Open portal mode is now included.  Set the 
+"GatewayMode" directive to "Open" in the nocat.conf on your
+gateway, and it will display a simple splash page rather than
+connect to the auth system.  Set it to "Captive" for regular
+Captive portal mode.
+
+
+RJF
+
+-=-=-=-=-
+
+08/15/2001 (v0.42)
+
+Another quick maintenance release.
+
+RJF
+
+-=-=-=-=-
+
+08/15/2001 (v0.41)
+
+Largely a maintenance release, with a new firewall feature:
+IncludePorts and ExcludePorts (see INSTALL and sample
+nocat.conf for details).
+
+Also Fixed the DNSAddr specification bug, added some port
+forwarding examples in etc/, an init script, and more
+documentation.  Yes, we're still Beta, but getting better 
+all the time!
+
+RJF
+
+-=-=-=-=-
+
+08/12/2001 (v0.40)
+
+The NoCat Auth distro has come a long way. We've got a live
+authentication service up and running; you can find it at
+http://nocat.net. Almost all of the functionality from the
+original white paper spec has been implemented; at this point,
+the major feature still in an experimental state is the
+per-service-class bandwidth shaping. It's still Beta, but it
+seems to work pretty well for us. We hope it'll work for you,
+too, and we hope you'll let us know if does. (And if it doesn't 
+we hope you'll send patches and not flames... :-)
+
+SDE
+
+=========
+
+07/25/2001 (v0.30)
+
+Greetings from the 2001 O'Reilly Open Source Conference
+in San Diego. We've spent a lot of time polishing this
+and making it work. We're pleased to call it BETA
+software, and we think it basically works, but YMMV. Please
+send your thoughts, comments, questions, bug reports, and
+most of all, your patches. Thanks.
+
+- SDE
+
+=========
+
+07/12/2001
+
+This is ALPHA software. It does not conform completely
+to the NoCat spec, it has no documentation, and it is
+intrinsically insecure. However, it does somewhat
+function, with a good bit of tweaking. Don't use it.
+Have a nice day. :)
+
+- SDE & RJF

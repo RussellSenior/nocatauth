@@ -5,9 +5,3 @@ Oddments that will be fixed Real Soon Now:
   "IncludeUDPPorts", "IncludeTCPPorts", etc?  For that matter, what about
   separate rules for Co-op members?
 
-* On logout, the fwmark reverts to 4 (meaning restricted only to the auth
-  service.)  For some reason, it doesn't filter established TCP connections
-  (i.e., new connections are prohibited, but ssh, telnet, and keep-alive
-  HTTP connections are still permitted.)  This isn't a huge problem as
-  spoofing established tcp connections seamlessly is non-trivial, but it
-  should be fixed.

@@ -2,7 +2,28 @@
 
 * Group membership filtering on the gateway
 
+* Passwd-style authentication source
+
 === To Do (more or less in order of importance):
+
+* Separate NoCat's iptables rules into a separate table to avoid interfering with other rules
+
+* Multiple interface support
+
+* ifconfig awareness (for getting interface/network/broadcast addresses). 
+  Maybe find external address by looking for a default gateway & 
+  find DNS via resolv.conf parsing.
+
+* optional firewalling of internal wireless interface
+
+* automatic live firewall detection
+
+* ipchains support
+
+* Better error reporting from gateway to authservice and from authservice to user during notification.
+
+* Group managment tools. *** bin/admintool is a fully functional commandline
+  interface.  Use it!
 
 * Doc note per Terry Schmidt: "(Note:  Causes Security alert
   message after clicking login, because you are directed from an insecure URL
@@ -11,7 +32,7 @@
 
 * Have auth tokens show up in both gateway and authservice logs, for bug tracking.
 
-* Group managment tools
+* "Agree-Disagree" instead of just "Login" for splash page
 
 * User mgmt tools, including admin interface & "Forgot my password" mailer.
 
@@ -23,10 +44,6 @@
 
 * Anonymous (vs. Public) Class Service
 
-* Better error reporting from gateway to authservice during notification.
-
-* ifconfig awareness (for getting interface/network/broadcast addresses).
-
 * DOCS
 
 * Sanity checking of timeout values, etc. Esp. try to prevent g/w from blocking forever.
@@ -35,4 +52,4 @@
 
 * User-definable timeout option
 
-* Auth service initiated authentication 
+* C port

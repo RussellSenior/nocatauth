@@ -1,4 +1,18 @@
 #!/bin/sh
+##
+#
+# initialize.fw: setup the default firewall rules
+#
+# *** NOTE ***
+#
+# If you want to have local firewall rules in addition to what NoCat
+# provides, add them at the bottom of this file.  They will be recreated
+# each time gateway is restarted.
+#
+##
+
+PATH=/sbin:/usr/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/local/bin
+export PATH
 
 # Enable IP forwarding.
 #
@@ -24,11 +38,11 @@ modprobe ipt_state
 modprobe ipt_mark
 
 #
-# By default, accept everything
+# By default, accept everything on INPUT and OUTPUT, but not FORWARD
 #
 iptables -P INPUT ACCEPT
 iptables -P OUTPUT ACCEPT
-iptables -P FORWARD ACCEPT
+iptables -P FORWARD DROP
 
 #
 # Flush all tables
@@ -36,6 +50,18 @@ iptables -P FORWARD ACCEPT
 iptables -F
 iptables -t nat -F
 iptables -t mangle -F
+
+#
+# Only forward tagged traffic per class
+#
+iptables -t filter -A FORWARD -i $InternalDevice -o $ExternalDevice -m mark --mark 1 -j ACCEPT
+iptables -t filter -A FORWARD -i $InternalDevice -o $ExternalDevice -m mark --mark 2 -j ACCEPT
+iptables -t filter -A FORWARD -i $InternalDevice -o $ExternalDevice -m mark --mark 3 -j ACCEPT
+iptables -t filter -A FORWARD -i $InternalDevice -o $ExternalDevice -m mark --mark 4 -d $AuthServiceAddr -j ACCEPT
+#
+# ...and always forward traffic back in from the auth service.
+#
+iptables -t filter -A FORWARD -i $ExternalDevice -o $InternalDevice -s $AuthServiceAddr -j ACCEPT
 
 #
 # Set the default packets to fw mark 4, or 'denied'.
@@ -155,6 +181,10 @@ iptables -t nat -A PREROUTING -i $InternalDevice -j ACCEPT
 # chmod +x throttle.fw
 #
 [ -x throttle.fw ] && throttle.fw
+
+##
+# Add any other local firewall rules below.
+##
 
 #
 # Ende
