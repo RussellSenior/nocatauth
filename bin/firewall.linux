@@ -43,6 +43,13 @@ iptables -A PREROUTING -i $InternalDevice -t mangle -j MARK --set-mark 4
 #
 # Masquerade anything that isn't restricted.
 #
+# The current service classes by fwmark are:
+#
+#  1: Owner
+#  2: Co-op
+#  3: Public
+#  4: Denied
+#
 iptables -t nat -A POSTROUTING -o $ExternalDevice -s $LocalNetwork -m mark --mark 1 -j MASQUERADE
 iptables -t nat -A POSTROUTING -o $ExternalDevice -s $LocalNetwork -m mark --mark 2 -j MASQUERADE
 iptables -t nat -A POSTROUTING -o $ExternalDevice -s $LocalNetwork -m mark --mark 3 -j MASQUERADE
@@ -54,10 +61,6 @@ iptables -t nat -A POSTROUTING -o $ExternalDevice -s $LocalNetwork -m mark --mar
 iptables -t nat -A PREROUTING -m mark --mark 4 -p tcp --dport 80 -d ! $AuthServiceAddr -j REDIRECT --to-port 5280
 iptables -t nat -A PREROUTING -m mark --mark 4 -p tcp --dport 443 -d ! $AuthServiceAddr -j REDIRECT --to-port 5280
 
-
-# Accept traffic on the internal
-#
-iptables -t nat -A PREROUTING -i $InternalDevice -j ACCEPT
 
 #
 # Accept DNS traffic from the internal to DNSAddr if defined,
@@ -72,7 +75,65 @@ else
 fi
 
 #
-# Log all of these.
+# Lock down more ports for public users, if specified.
+#
+# There are two philosophies in restricting access:  That Which Is Not
+# Specifically Permitted Is Denied, and That Which Is Not Specifically
+# Denied Is Permitted.
+#
+# If "IncludePorts" is defined, the default policy will be to deny all
+# traffic, and only allow the ports mentioned.
+#
+# If "ExcludePorts" is defined, the default policy will be to allow all
+# traffic, except to the ports mentioned.
+#
+# If both are defined, ExcludePorts will be ignored, and the default policy
+# will be to deny all traffic, allowing everything in IncludePorts, and
+# issue a warning.
+#
+if [ "$IncludePorts" ]; then
+
+  if [ "$ExcludePorts" ]; then
+    echo "Warning: ExcludePorts and IncludePorts are both defined."
+    echo "Ignoring 'ExcludePorts'.  Please check your nocat.conf."
+  fi
+
+  #
+  # Enable all ports in IncludePorts
+  #
+  #echo "Enabling public access to these ports: $IncludePorts"
+  
+  for port in $IncludePorts; do
+    iptables -t nat -A PREROUTING -p tcp -i $InternalDevice --dport $port -m mark --mark 3 -j ACCEPT
+  done
+
+  # Always permit access to the GatewayPort (or we can't logout)
+  #
+  iptables -t nat -A PREROUTING -p tcp -i $InternalDevice --dport $GatewayPort -j ACCEPT
+  
+  # ...and disable access to the rest.
+  #
+  iptables -t nat -A PREROUTING -p tcp -i $InternalDevice -m mark --mark 3 -j DROP
+
+elif [ "$ExcludePorts" ]; then
+  #
+  # If ExcludePorts has entries, simply deny access to them.
+  #
+  #echo "Denying public access to these ports: $ExcludePorts"
+
+  for port in $ExcludePorts; do
+    iptables -t nat -A PREROUTING -p tcp -i $InternalDevice --dport $port -m mark --mark 3 -j DROP
+  done
+fi
+  
+
+#
+# Accept remaining traffic on the internal (unless noted above)
+#
+iptables -t nat -A PREROUTING -i $InternalDevice -j ACCEPT
+
+#
+# Enable Logging
 #
 #iptables -t nat -I PREROUTING -m mark --mark 4 -j LOG --log-level debug --log-ip-options
 

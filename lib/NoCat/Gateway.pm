@@ -20,9 +20,11 @@ sub new {
     return $self;
 }
 
-sub run {
+sub bind_socket {
     my $self = shift;
-    my ( @address, $fh );
+    my @address;
+
+    return $self->{ListenSocket} if $self->{ListenSocket};
 
     # If no IP address is specified, try them all.
     if ( $self->{GatewayAddr} ) {
@@ -42,36 +44,57 @@ sub run {
 	@address
     );
 
-    # Does ctrl-c'ing the server make things hang next time we reload?
-    # local $SIG{INT} = sub { $server->close if $server };
+    $self->log( 0, "Can't bind to port $self->{GatewayPort}: $!. (Is another gateway already running?)" )
+	unless $server;
+
+    return( $self->{ListenSocket} = $server );
+}
+
+sub run {
+    my $self	= shift;
+
+    return unless $self->bind_socket;
+
     local $SIG{PIPE} = "IGNORE"; 
 
     # Handle connections as they come in.
     #
     while ( 1 ) {
 	# Spend some time waiting for something to happen.
-	vec( $fh = "", $server->fileno, 1 ) = 1;
+	$self->poll_socket;
 
-	while (select( $fh, undef, undef, $self->{PollInterval} )) {
-	    # A request!
-	    my $sock	= $server->accept;
-    	    my $peer	= $self->peer( $sock );
-    
-	    $self->log( 8, "Connection to " . $sock->sockhost . " from " . $sock->peerhost );
-	    $self->handle( $peer );
-	}
-
-	# If nothing happens, see if any logins have reached their timeout period.
-	while ( my ($token, $peer) = each %{$self->{Peer}} ) {
-	    if ( $peer->expired ) {
-		$self->log( 8, "Expiring connection from ", $peer->ip, "." );
-		$self->deny( $peer );
-	    }
-	} 
+	# See if any logins have reached their timeout period.
+	$self->check_peers;
 
     } # loop forever
 }
 
+sub poll_socket {
+    my $self	= shift;
+    my $server	= $self->bind_socket;
+
+    vec( my $fh = "", $server->fileno, 1 ) = 1;
+
+    while (select( $fh, undef, undef, $self->{PollInterval} )) {
+	# A request!
+	my $sock	= $server->accept;
+    	my $peer	= $self->peer( $sock );
+    
+	$self->log( 8, "Connection to " . $sock->sockhost . " from " . $sock->peerhost );
+	$self->handle( $peer );
+    }
+}
+
+sub check_peers { 
+    my $self = shift;
+    while ( my ($token, $peer) = each %{$self->{Peer}} ) {
+	if ( $peer->expired ) {
+	    $self->log( 8, "Expiring connection from ", $peer->ip, "." );
+	    $self->deny( $peer );
+	}
+    }
+}
+ 
 sub handle {
     my ( $self, $peer ) = @_;
     my $socket = $peer->socket;    

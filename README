@@ -1,24 +1,44 @@
-NoCat Authentication v.0.40 
+NoCat Authentication v.0.42
 ===========================
 (c) 2001 Schuyler Erle & Robert Flickenger.
 
 Credits
 =======
-The software has been largely written by Schuyler Erle, with
-a herculean amount of motivation and assistance from Rob
-Flickenger. Moral support and testing effort has been provided
-by Nate Boblitt, Jim Rosenbaum, and Adam Flaherty, who also
-did a lot of work on the look and feel of the auth service.
-Additional testing help was provided by Rich Gibson, and Terrie
+The software has been largely written by Schuyler Erle, with a
+herculean amount of motivation and assistance from Rob
+Flickenger. Moral support and testing effort has been provided by
+Nate Boblitt, Jim Rosenbaum, and Adam Flaherty, who also did a
+lot of work on the look and feel of the auth service. Additional
+testing was provided by Terry Schmidt and Rich Gibson.  Terrie
 Miller provided us with the original design for the website.
 
 We hope NoCat Auth helps you provide unlimited bandwidth
 everywhere for free.
 
+You can always get the most current release at:
+
+http://nocat.net/download/NoCatAuth/
+
+
 Release Notes:
 ==============
 
-08/12/2001
+08/15/2001 (v0.42)
+
+Largely a maintenance release, with a new firewall feature:
+IncludePorts and ExcludePorts (see INSTALL and sample
+nocat.conf for details).
+
+Also Fixed the DNSAddr specification bug, added some port
+forwarding examples in etc/, an init script, and more
+documentation.  Yes, we're still Beta, but getting better 
+all the time!
+
+RJF
+
+-=-=-=-=-
+
+08/12/2001 (v0.40)
 
 The NoCat Auth distro has come a long way. We've got a live
 authentication service up and running; you can find it at
@@ -34,7 +54,7 @@ SDE
 
 =========
 
-07/25/2001
+07/25/2001 (v0.30)
 
 Greetings from the 2001 O'Reilly Open Source Conference
 in San Diego. We've spent a lot of time polishing this

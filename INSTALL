@@ -1,7 +1,12 @@
-NoCatAuth installation guide
-ver 1.1 -- 8/11/01 SDE
+###
+## NoCatAuth installation guide
+##
+ver 1.2 -- 8/15/01 
 
-### 6 Easy Steps to Installing Your Very Own Captive Portal.
+
+###
+## 6 Easy Steps to Installing Your Very Own Captive Portal.
+##
 
 Running a captive portal requires root permissions on the gateway machine.
 
@@ -58,11 +63,26 @@ important pieces of the captive portal software.
     * AuthServiceAddr, AuthServiceURL, and LogoutURL depend on your chosen
 	auth service. Check with them for these values.
 
-### Starting the NoCatAuth captive portal.
+    * IncludePorts and ExcludePorts can be set to restrict ports that public
+        users can access (i.e., to disallow email traffic.)  If you use
+        IncludePorts, only the ports listed will be allowed.  Using
+        ExcludePorts makes all ports available *except* the ports listed. 
+        Currently, only TCP ports are supported.
+
+
+###
+## Starting the NoCatAuth captive portal.
+##
+
+You should now be able to start the portal by running
+/usr/local/nocat/bin/gateway as root.  If it doesn't start cleanly, read on.
 
 The portal needs to know where to find (a) its perl libraries, and (b) its
 nocat.conf configuration file. NoCatAuth tries to figure out these values
-on its own. If it can't, you may need to add the following variables to the
+on its own. If you installed to /usr/local/nocat, you should have no
+problems.
+
+Otherwise, you may need to add the following variables to the
 shell environment before running the gateway script:
 
     $ export PERL5LIB=/path/to/nocat/lib
@@ -80,7 +100,19 @@ Starting the gateway is then as simple as: (from a root prompt)
 NOTE: You MUST run the gateway program as root, in order for it to be able to
 update the firewall rules as needed. Arguably, this is a bug. Patches welcome.
 
-### Running Your Own Auth Service.
+To start the gateway service automatically at boot time, check out the
+etc/nocat.rc script.  Install it by copying it to /etc/rc.d/init.d, and
+either add a call to it in your rc.local, or symlink it to your runlevel,
+like this:
+
+    # ln -s /etc/rc.d/init.d/nocat.rc /etc/rc.d/rc3.d/S99nocat
+
+Congratulations.  You're now running a gateway.
+
+
+###
+## Running Your Own Auth Service.
+##
 
 If you're just running a wireless node, you can skip this section.
 

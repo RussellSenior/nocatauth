@@ -4,14 +4,17 @@ use NoCat qw( PUBLIC );
 use strict;
 use vars qw( @ISA @REQUIRED *ARP );
 
-@REQUIRED   = qw( ResetCmd PermitCmd DenyCmd );
+@REQUIRED   = qw(
+    ResetCmd PermitCmd DenyCmd InternalDevice ExternalDevice LocalNetwork AuthServiceAddr 
+);
 @ISA	    = 'NoCat';
 
 # These config parameters get exported into the environment after a fork
 # so that they can be passed to the relevant firewall scripts.
 #
 my @Perform_Export = qw( 
-    InternalDevice ExternalDevice LocalNetwork AuthServiceAddr DNSAddr 
+    InternalDevice ExternalDevice LocalNetwork AuthServiceAddr DNSAddr
+    GatewayPort IncludePorts ExcludePorts
 );
 
 sub perform {
@@ -24,7 +27,7 @@ sub perform {
     if ( my $pid = fork ) {
 	return;
     } elsif ( defined $pid ) {
-	$ENV{$_} = $self->{$_} for @Perform_Export;
+	$ENV{$_} = ( defined( $self->{$_} ) ? $self->{$_} : "" ) for @Perform_Export;
 	exec $cmd;
 	die "Firewall $action failure: $cmd returned $? ($!)"; # Can't happen.
     } elsif ( not defined $pid ) {

@@ -1,14 +1,17 @@
-Ready but untested:
-
-* Test gateway behind NAT with port forwarding
 
 Tentative TODO list (more or less in order of importance):
 
+* User mgmt tools, including admin interface & "Forgot my password" mailer.
+
 * Better error reporting from gateway to authservice during notification.
 
-* DOCS
+* "Open Portal" gateway mode
 
-* rc script to start bin/gateway? and load kernel modules!!!
+* Group managment tools
+
+* Group membership filtering on the gateway
+
+* DOCS
 
 * Sanity checking of timeout values, etc. Esp. try to prevent g/w from blocking forever.
 
@@ -19,7 +22,5 @@ Tentative TODO list (more or less in order of importance):
 * User-definable timeout option
 
 * Apply for SSL cert
-
-* User management tools
 
 * Auth service initiated authentication 

@@ -15,6 +15,9 @@ $server->log( 6, "Resetting firewall." );
 $server->firewall->reset;
 exit if $opt{R}; # We're done now, if -R.
 
+# See if we can bind the listener port.
+exit 1 unless $server->bind_socket;
+
 if ( my $log = $server->{GatewayLog} ) {
     open STDERR, ">>$log" or die "Can't open log file $log: $!";
     open STDOUT, ">&STDERR" or die "Can't dup STDOUT to STDERR: $!";
