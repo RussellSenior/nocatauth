@@ -96,7 +96,7 @@ authserv: check_gpg install_gw install_etc
 	    perl -pe 's#/usr/local/nocat#$(PREFIX)#g' authserv.conf \
 		> $(TARGET)/nocat.conf
 	[ -f $(TARGET)/httpd.conf ] || \
-	    perl -pe 's#/usr/local/nocat#$(PREFIX)#g' etc/authserv.conf \
+	    perl -pe 's#/usr/local/nocat#$(PREFIX)#g' etc/httpd.conf \
 		> $(TARGET)/httpd.conf
 	@echo
 	@echo "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"

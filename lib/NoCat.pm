@@ -1,6 +1,6 @@
 package NoCat;
 
-use constant VERSION	=> "0.81.20020808";
+use constant VERSION	=> "0.81.20020808.20040523";
 use constant PERMIT	=> "Permit";
 use constant DENY	=> "Deny";
 use constant PUBLIC	=> "Public";

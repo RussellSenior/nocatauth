@@ -118,11 +118,11 @@ your web server runs as (usually 'www', or sometimes 'nobody').  If not, you
 will get odd gpg permissions errors when running the auth service.
 
 
-7. Add etc/authserv.conf (from the distribution) to your Apache's
+7. Add etc/httpd.conf (from the distribution) to your Apache's
 httpsd.conf.  You can use a regular 'Include' line, if you like.  If you're
 not using Apache, add the equivalent to your server's configuration file.
 
-Check the paths in etc/authserv.conf, and read the comments.  Also make sure
+Check the paths in etc/httpd.conf, and read the comments.  Also make sure
 /that usr/local/nocat/cgi-bin is served from somewhere on your webserver
 (probably on a VirtualHost, if you're using Apache.)
 

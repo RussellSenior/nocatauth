@@ -173,7 +173,7 @@ sub poll_socket {
 		$self->accept_client( $client );
 		
 		# Exit iff we actually succeeded in forking.
-		return 0 if defined $is_parent; 
+		exit 0 if defined $is_parent;
 	    }
 	} else {
 	    # Otherwise, this is a child reporting back via a pipe.
