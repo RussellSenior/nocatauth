@@ -1,0 +1,2 @@
+
+iptables -A FORWARD -i $WIRELESS --mac-source $MAC -s $IP -t mangle -j MARK --set-mark $CLASS

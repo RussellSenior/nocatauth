@@ -1,0 +1,77 @@
+#!/usr/bin/perl -w
+
+###
+##
+# login
+#
+# The CGI that does the deed.
+#
+#  * Present a form
+#  * Check it when filled in
+#  * Notify the connecting IP of the outcome
+#  * Inform and optionally redirect the user
+#
+# RJF & SDE, 7.4.01 
+#
+# License: GPL.
+##
+###
+
+use NoCat;
+use strict;
+
+my $authserv	= NoCat->auth_service( ConfigFile => $ENV{NOCAT} );
+my $cgi		= $authserv->cgi;
+my %p		= $cgi->Vars;
+
+##
+# Have we filled in the form yet?  No?  If not, present one.
+##
+$authserv->log( 7, $cgi->remote_host . " requests " . (lc $p{mode} || "form") );
+
+if ( not $p{mode} ) {
+    $authserv->display( LoginForm => "LoginGreeting" );
+
+} elsif ( $p{mode} =~ /^login/io ) {
+    $authserv->display( FatalForm => "Your MAC address is undefined.  Problem with the gateway?" )
+	unless $p{mac};
+    $authserv->display( FatalForm => "Your gateway cookie is undefined.  Problem with the gateway?" )
+	unless $p{reqid};
+}
+    
+# Are we just missing required fields?
+$authserv->display( LoginForm => "LoginMissing" ) unless $p{user} and $p{pass};
+
+##
+# Does the login info match what we have on file?
+##
+
+my $user = $authserv->user->fetch( $authserv->{UserIDField} => $p{user} );
+
+$authserv->display( LoginForm => "LoginBadUser"   ) unless $user->id;
+$authserv->display( LoginForm => "LoginBadPass"   ) unless $user->authenticate( $p{pass} );
+$authserv->display( LoginForm => "LoginBadStatus" ) unless $user->authorize;
+
+##
+# Finally, notify the gateway (and the user) as to the outcome.
+##
+
+my ( $form, $refresh );
+
+if ( $p{mode} =~ /^popup/io ) {
+    $form = "RenewForm";
+    $refresh = $authserv->renewal_url( "user", "pass" );
+} elsif ($authserv->notify( Permit => $p{user}, $p{mac}, $p{reqid} )) {
+    if ( $p{mode} =~ /^renew/io ) {
+	$form = "RenewForm";
+    } else {
+	$form = "LoginForm";
+	$refresh = "5; URL=" . ($p{redirect} || $authserv->{HomePage});
+    }
+} else {
+  $authserv->display( FatalForm => "Authentication error: $!" );
+}
+
+$refresh = $authserv->renewal_url( "user", "pass" ) if $form eq "RenewForm";
+
+print $cgi->header( -Refresh => $refresh ), $authserv->parse_file( $form => \%p ); 

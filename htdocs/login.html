@@ -1,0 +1,33 @@
+<html>
+<body bgcolor=c0c0c0 text=000000>
+$Message
+<form method="get" action="$CGIScript">
+<table border=0 cellpadding=5 cellspacing=0>
+<tr>
+  <td align=right>Login:</td>
+  <td><input type="text" name="user" value="$user" size="20" maxlength="255"></td>
+</tr>
+<tr>
+  <td align=right>Password:</td>
+  <td><input type="password" name="pass" value="$pass" size="20" maxlength="255"></td>
+</tr>
+<tr>
+  <td align=center colspan=2><input type="submit" name="mode" value="Login"></td>
+</tr>
+<tr>
+ <td> </td>
+</tr>
+<tr>
+ <td colspan=2 align=center><input type="submit" name="mode" value="Skip authentication..."></td>
+</tr>
+</table>
+
+<p>
+
+<input type="hidden" name="mac" value="$mac">
+<input type="hidden" name="reqid" value="$reqid">
+<input type="hidden" name="redirect" value="$redirect">
+</form>
+<p>
+</body>
+</html>

@@ -1,0 +1,67 @@
+# MySQL dump 8.12
+#
+# Host: localhost    Database: nocat
+#--------------------------------------------------------
+# Server version	3.23.33
+
+#
+# Table structure for table 'EventLog'
+#
+
+CREATE TABLE EventLog (
+  ID int(10) unsigned NOT NULL auto_increment,
+  Class tinyint(3) unsigned NOT NULL default '0',
+  Severity tinyint(3) unsigned NOT NULL default '0',
+  Event varchar(255) default NULL,
+  Created datetime default NULL,
+  PRIMARY KEY (ID)
+) TYPE=MyISAM;
+
+#
+# Table structure for table 'Hardware'
+#
+
+CREATE TABLE Hardware (
+  ID int(10) unsigned NOT NULL auto_increment,
+  MAC varchar(17) default NULL,
+  Owner int(10) unsigned NOT NULL default '0',
+  Description varchar(255) default NULL,
+  Created datetime default NULL,
+  Modified timestamp(14) NOT NULL,
+  PRIMARY KEY (ID)
+) TYPE=MyISAM;
+
+#
+# Table structure for table 'Member'
+#
+
+CREATE TABLE Member (
+  URL varchar(255) default NULL,
+  Description text,
+  Created datetime default NULL,
+  Modified timestamp(14) NOT NULL,
+  Status tinyint(3) unsigned default NULL,
+  User varchar(255) NOT NULL default '',
+  Pass varchar(255) NOT NULL default '',
+  Name varchar(255) default NULL,
+  PRIMARY KEY (User)
+) TYPE=MyISAM;
+
+#
+# Table structure for table 'Node'
+#
+
+CREATE TABLE Node (
+  ID int(10) unsigned NOT NULL auto_increment,
+  Owner int(10) unsigned NOT NULL default '0',
+  Address varchar(255) default NULL,
+  Service tinyint(3) unsigned default NULL,
+  Range tinyint(3) unsigned default NULL,
+  Bandwidth tinyint(3) unsigned default NULL,
+  Created datetime default NULL,
+  Modified timestamp(14) NOT NULL,
+  Lat float default NULL,
+  Lon float default NULL,
+  PRIMARY KEY (ID)
+) TYPE=MyISAM;
+

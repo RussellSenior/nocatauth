@@ -1,0 +1,32 @@
+#!/usr/bin/perl -w
+
+##
+# VERY simple access control script
+##
+
+$ENV{PATH}="/sbin:/usr/sbin:/usr/local/sbin";
+
+sub panic {
+  print shift;
+  die "Usage: $0 [permit|deny] [Interface] [MAC] [IP] [Class]\n\nExample: $0 permit eth0 00:02:2d:aa:bb:cc 10.0.0.105 1\n";
+}
+
+!$ARGV[4] && panic("FATAL: Not enough parameters!\n");
+
+my $cmd = "";
+
+if($ARGV[0] =~ /^permit$/i) {
+  $cmd = "-I";
+}
+elsif($ARGV[0] =~ /^deny$/i) {
+  $cmd = "-D";
+}
+else {
+  panic("FATAL: Bad parameter: $ARGV[0]!\n");
+}
+
+exec("iptables -t nat $cmd PREROUTING -i $ARGV[1] -m mac --mac-source $ARGV[2] -s $ARGV[3] -j RETURN");
+
+#
+# Ende
+#
