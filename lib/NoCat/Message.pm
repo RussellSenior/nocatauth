@@ -18,12 +18,23 @@ sub text {
 
 sub sign {
     my ( $self, $txt ) = @_;
+    my $cmd;
 
     return $self->text if $self->{Signed} and not defined $txt;
     $txt = $self->text( $txt );
 
-    die "Can't find required MessageSign directive" unless $self->{MessageSign};
-    my $cmd = $self->SUPER::format( $self->{MessageSign} );
+    if ( $self->{MessageSign} ) {
+	$cmd = $self->SUPER::format( $self->{MessageSign} );
+
+    } elsif ( $self->{GpgvPath} and $self->{PGPKeyPath} ) {
+	$cmd = '$GpgPath --clearsign --homedir=$PGPKeyPath -o-';
+	$cmd .= " 2>/dev/null" if $self->{Verbosity} < 7;
+
+    } else {
+	die "Can't find required MessageSign directive";
+    }
+
+    $cmd = $self->SUPER::format( $cmd );
 
     open2( \*IN, \*OUT, $cmd ) or die "$cmd: $!";
     print OUT $txt;
@@ -40,12 +51,24 @@ sub sign {
 
 sub verify {
     my ( $self, $txt ) = @_;
+    my $cmd;
 
     return $self->text if $self->{Verified} and not defined $txt;
     $txt = $self->text( $txt );
 
-    die "Can't find required MessageVerify directive" unless $self->{MessageVerify};
-    my $cmd = $self->SUPER::format( $self->{MessageVerify} );
+    if ( $self->{MessageVerify} ) {
+	$cmd = $self->{MessageVerify} 
+    
+    } elsif ( $self->{GpgvPath} and $self->{PGPKeyPath} ) {
+	$cmd = '$GpgvPath --homedir=$PGPKeyPath';
+	$cmd .= ' 2>/dev/null' if $self->{Verbosity} < 7;
+
+    } else {
+	die "Can't find required MessageVerify directive";
+    }
+
+    $cmd = $self->SUPER::format( $cmd );
+    
     my $kid = open OUT, "|-";
 
     if ( not defined $kid ) {

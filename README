@@ -1,3 +1,39 @@
+NoCat Authentication v.0.40 
+===========================
+(c) 2001 Schuyler Erle & Robert Flickenger.
+
+Credits
+=======
+The software has been largely written by Schuyler Erle, with
+a herculean amount of motivation and assistance from Rob
+Flickenger. Moral support and testing effort has been provided
+by Nate Boblitt, Jim Rosenbaum, and Adam Flaherty, who also
+did a lot of work on the look and feel of the auth service.
+Additional testing help was provided by Rich Gibson, and Terrie
+Miller provided us with the original design for the website.
+
+We hope NoCat Auth helps you provide unlimited bandwidth
+everywhere for free.
+
+Release Notes:
+==============
+
+08/12/2001
+
+The NoCat Auth distro has come a long way. We've got a live
+authentication service up and running; you can find it at
+http://nocat.net. Almost all of the functionality from the
+original white paper spec has been implemented; at this point,
+the major feature still in an experimental state is the
+per-service-class bandwidth shaping. It's still Beta, but it
+seems to work pretty well for us. We hope it'll work for you,
+too, and we hope you'll let us know if does. (And if it doesn't 
+we hope you'll send patches and not flames... :-)
+
+SDE
+
+=========
+
 07/25/2001
 
 Greetings from the 2001 O'Reilly Open Source Conference

@@ -22,8 +22,8 @@ my %p		= $cgi->Vars;
 
 $authserv->check_config(qw(
     RegisterForm RegisterGreeting RegisterUserExists RegisterBadUser
-    RegisterBadPass RegisterPassNoMatch RegisterFields RegisterSuccess
-    UserIDField UserPassField
+    RegisterInvalidPass RegisterPassNoMatch RegisterFields RegisterSuccess
+    UserIDField UserPasswdField
 ));
 
 sub respond { $authserv->display( RegisterForm => @_ ) }
@@ -32,7 +32,7 @@ sub respond { $authserv->display( RegisterForm => @_ ) }
 # Have we filled in the form yet?  No?  If not, present one.
 ##
 
-respond "RegisterGreeting" unless $p{go};
+respond "RegisterGreeting" unless $p{register} or $p{"register.x"};
 
 ##
 # Are we just missing required fields?
@@ -49,7 +49,7 @@ my $user = $authserv->user->fetch( $authserv->{UserIDField} => $p{user} );
 
 respond "RegisterUserExists"	if $user->id;
 respond "RegisterBadUser"	unless $p{user} =~ /^[\w.+-]+\@[\w.-]+\.[\w.]+$/o;
-respond "RegisterBadPass"	if length $p{pass} < $authserv->{MinPasswdLength};
+respond "RegisterInvalidPass"	if length $p{pass} < $authserv->{MinPasswdLength};
 respond "RegisterPassNoMatch"	if $p{pass} ne $p{pass2};
 
 ##
@@ -59,14 +59,16 @@ respond "RegisterPassNoMatch"	if $p{pass} ne $p{pass2};
 my @fields = grep($_, split( /\s/, $authserv->{RegisterFields} ));
 
 for my $f ( @fields  ) {
-    $user->set( $f => $p{$f} ) if defined $p{$f};
+    $user->set( $f => $p{lc $f} ) if defined $p{lc $f};
 }
 
 $user->set( 
-    $authserv->{UserIDField}    => $p{user},
-    $authserv->{UserPassField}  => $p{pass}
+    $authserv->{UserIDField}	 => $p{user},
+    $authserv->{UserPasswdField} => $p{pass}
 );
 
-$user->store;
+$user->create;
 
-respond "RegisterSuccess";
+$authserv->success( RegisterOKForm => \%p );
+
+# Fin

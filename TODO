@@ -2,21 +2,9 @@ Ready but untested:
 
 * Test gateway behind NAT with port forwarding
 
-* Test owner lists
-
-* Spiffy up bin/access (actually support multiple classes of service)
-
-* Add firewall rules for DNS
-
-* Better checking of ConfigFile locations and directive sanity
-
 Tentative TODO list (more or less in order of importance):
 
-* Better expiration of auth tokens (to avoid multiple login confusion and potential resource attack).
-
 * Better error reporting from gateway to authservice during notification.
-
-* More configurable logging for bin/gateway
 
 * DOCS
 
@@ -35,5 +23,3 @@ Tentative TODO list (more or less in order of importance):
 * User management tools
 
 * Auth service initiated authentication 
-
-* Bundle::NoCat for CPAN?

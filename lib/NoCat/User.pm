@@ -21,7 +21,7 @@ sub new {
 
     $self->{Data} ||= {};
     
-    if ( my $new_pw = $self->data->{$self->{UserPasswdField}} ) {
+    if ( my $new_pw = $self->passwd ) {
 	$self->set_password( $new_pw );
     } 
     return $self;
@@ -62,6 +62,13 @@ sub id {
     return $self->{Data}{ $self->{UserIDField} };
 }
 
+# passwd() returns the (hopefully hashed) password from the User object.
+#
+sub passwd {
+    my $self = shift;
+    return $self->{Data}{ $self->{UserPasswdField} };
+}
+
 # db() instantiates (as needed) and returns a connection to an external database.
 #
 sub db {
@@ -78,11 +85,15 @@ sub db {
 #
 sub create {
     my $self	= shift;
+
+    $self->{Data}{$self->{UserStampField}} = undef if $self->{UserStampField};
+
     my @fields	= keys %{$self->{Data}};
     my @place	= ("?") x @fields;
-    
+ 
     local $" = ", ";
-    $self->db->do( "insert into $self->{UserTable} (@fields) values (@place)", {}, values %{$self->{Data}} );
+    $self->db->do( "insert into $self->{UserTable} (@fields) values (@place)", 
+	{}, values %{$self->{Data}} );
 }
 
 # fetch() retrieves an existing NoCat::User object from the database.
@@ -113,7 +124,8 @@ sub fetch {
 sub store {
     my $self	= shift;
     my @fields	= join(", ", map( "$_ = ?", keys %{$self->{Data}} ));
-    $self->db->do( "update $self->{UserTable} set @fields", {}, values %{$self->{Data}} );
+    $self->db->do( "update $self->{UserTable} set @fields where $self->{UserIDField} = ?", 
+	{}, values %{$self->{Data}}, $self->id );
 }
 
 # authenticate() takes a cleartext password and returns true if the User object's
@@ -121,7 +133,7 @@ sub store {
 #
 sub authenticate {
     my ( $self, $user_pw )  = @_;
-    my $stored_pw	    = $self->data->{ $self->{UserPasswdField} } 
+    my $stored_pw	    = $self->passwd
 	or $self->log( 1, "User password not loaded yet" );
 
     return md5_base64( $user_pw ) eq $stored_pw;

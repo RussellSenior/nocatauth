@@ -1,11 +1,11 @@
 #!/bin/sh
 
-INTERNAL=eth1
-EXTERNAL=tun0
-LOCAL_NET=172.16.1.0
+INTERNAL=wlan0
+EXTERNAL=eth0
+LOCAL_NET=10.0.1.0
 LOCAL_MASK=255.255.255.0
 
-AUTHSERV=192.168.0.1
+AUTHSERV=208.201.239.21
 DNSSERV=208.201.239.31
 
 # Enable IP forwarding.
@@ -19,6 +19,7 @@ modprobe ipt_MASQUERADE
 modprobe ipt_MARK 
 modprobe ipt_REJECT 
 modprobe ipt_TOS   
+modprobe ipt_LOG
 modprobe iptable_mangle
 modprobe iptable_filter
 modprobe iptable_nat 
@@ -26,6 +27,7 @@ modprobe ip_nat_ftp
 modprobe ip_conntrack
 modprobe ipt_mac
 modprobe ipt_state
+modprobe ipt_mark
 
 #
 # By default, accept everything

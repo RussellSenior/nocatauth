@@ -1,0 +1,96 @@
+#!/bin/sh
+
+# Enable IP forwarding.
+#
+echo "1" > /proc/sys/net/ipv4/ip_forward
+
+# Load alllll the kernel modules we need.
+#
+modprobe ipt_REDIRECT 
+modprobe ipt_MASQUERADE 
+modprobe ipt_MARK 
+modprobe ipt_REJECT 
+modprobe ipt_TOS   
+modprobe ipt_LOG
+modprobe iptable_mangle
+modprobe iptable_filter
+modprobe iptable_nat 
+modprobe ip_nat_ftp
+modprobe ip_conntrack
+modprobe ipt_mac
+modprobe ipt_state
+modprobe ipt_mark
+
+#
+# By default, accept everything
+#
+iptables -P INPUT ACCEPT
+iptables -P OUTPUT ACCEPT
+iptables -P FORWARD ACCEPT
+
+#
+# Flush all tables
+#
+iptables -F
+iptables -t nat -F
+iptables -t mangle -F
+
+#
+# Set the default packets to fw mark 4, or 'denied'.
+#
+iptables -A PREROUTING -i $InternalDevice -t mangle -j MARK --set-mark 4
+
+#
+# Masquerade anything that isn't restricted.
+#
+iptables -t nat -A POSTROUTING -o $ExternalDevice -s $LocalNetwork -m mark --mark 1 -j MASQUERADE
+iptables -t nat -A POSTROUTING -o $ExternalDevice -s $LocalNetwork -m mark --mark 2 -j MASQUERADE
+iptables -t nat -A POSTROUTING -o $ExternalDevice -s $LocalNetwork -m mark --mark 3 -j MASQUERADE
+iptables -t nat -A POSTROUTING -o $ExternalDevice -s $LocalNetwork -m mark --mark 4 -d $AuthServiceAddr -j MASQUERADE
+
+#
+# Redirect outbound non-auth web traffic to the local gateway process
+#
+iptables -t nat -A PREROUTING -m mark --mark 4 -p tcp --dport 80 -d ! $AuthServiceAddr -j REDIRECT --to-port 5280
+iptables -t nat -A PREROUTING -m mark --mark 4 -p tcp --dport 443 -d ! $AuthServiceAddr -j REDIRECT --to-port 5280
+
+
+# Accept traffic on the internal
+#
+iptables -t nat -A PREROUTING -i $InternalDevice -j ACCEPT
+
+#
+# Accept DNS traffic from the internal to DNSAddr if defined,
+# otherwise Masquerade to the local host (as you must be running a caching server).
+#
+if [ -z $DNSAddr ]; then
+  iptables -t nat -A PREROUTING -p tcp -i $InternalDevice -d $LocalNetwork --dport 53 -j ACCEPT
+  iptables -t nat -A PREROUTING -p udp -i $InternalDevice -d $LocalNetwork --dport 53 -j ACCEPT
+else 
+  iptables -t nat -A POSTROUTING -p tcp -o $ExternalDevice -d $DNSAddr --dport 53 -j MASQUERADE
+  iptables -t nat -A POSTROUTING -p udp -o $ExternalDevice -d $DNSAddr --dport 53 -j MASQUERADE
+fi
+
+#
+# Log all of these.
+#
+#iptables -t nat -I PREROUTING -m mark --mark 4 -j LOG --log-level debug --log-ip-options
+
+#
+# Call the bandwidth throttle rules.
+#
+# Note: This feature is *highly* experimental.
+#
+# This functionality requires the 'tc' advanced router tool,
+# part of the iproute2 package, available at:
+# ftp://ftp.inr.ac.ru/ip-routing/
+#
+# To use bandwidth throttling, uncomment the following line,
+# and edit the upload and download bandwidth thresholds at 
+# the top of the bandwidth.linux file.
+#
+#bandwidth.linux
+
+#
+# Ende
+#

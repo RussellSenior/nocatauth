@@ -27,12 +27,21 @@ my %p		= $cgi->Vars;
 
 # Debug configuration setup.
 $authserv->check_config(qw( 
-    LoginForm FatalForm RenewForm SuccessForm
-    LoginGreeting LoginMissing LoginBadUser LoginBadPass 
+    LoginForm FatalForm RenewForm LoginOKForm ExpiredForm
+    LoginGreeting LoginMissing LoginBadUser LoginBadPass
 ));
 
 $authserv->log( 7, sprintf( "User %s from %s requests %s", 
     $p{user} || "", $cgi->remote_host, lc( $p{mode} ) || "form" ) );
+
+# Make concessions for image buttons (which don't have value="" attributes).
+if (my ($button) = grep $p{"mode_$_.x"}, qw( login skip logout )) {
+    $cgi->param( mode => ($p{mode} = $button) );
+    for ( "mode_$button.x", "mode_$button.y" ) {
+	delete $p{$_};
+	$cgi->delete($_);
+    }	
+}
 
 # Have we filled in the form yet?  No?  If not, present one.
 $authserv->display( LoginForm => "LoginGreeting" ) unless $p{mode};
@@ -45,7 +54,7 @@ $authserv->display( FatalForm => "Your gateway token is undefined.  Problem with
 
 # If the user skipped authentication, set public-class service.
 if ( $p{mode} =~ /^skip/io or ( $p{class} and $p{class} =~ /^public/io ) ) {
-    $p{user}	= "UNKNOWN";
+    $p{user}	||= "UNKNOWN";
     $p{class}	= "Public";
 
 # Otherwise, attempt to authenticate the user.
@@ -68,33 +77,38 @@ if ( $p{mode} =~ /^skip/io or ( $p{class} and $p{class} =~ /^public/io ) ) {
 $cgi->param( class => $p{class} );
 
 # Finally, notify the gateway (and the user) as to the outcome.
-my ( $form, $refresh, $gw );
+my ( $form, $gw );
 
 # Either we're requesting the renewal popup box...
 if ( $p{mode} =~ /^popup/io ) {
     $form = "RenewForm";
-    $refresh = $authserv->renew_url;
+    $p{redirect} = $authserv->renew_url;
 
 # Or we're either logging in, or renewing, in which case, notify the gateway.
 } elsif ($gw = $authserv->notify( Permit => \%p )) {
-    if ( $p{mode} =~ /^renew/io ) {
+
+    if ( $gw->{Error} ) {
+	# Oddly enough, this isn't really success.
+	$form = "ExpiredForm";
+
+    } elsif ( $p{mode} =~ /^renew/io ) {
 	$form = "RenewForm";
-	$refresh = $authserv->renew_url( $gw );
+	$p{redirect} = $authserv->renew_url( $gw );
+
     } else {
-	$form = "SuccessForm";
-	$refresh = "5; URL=" . ($p{redirect} || $authserv->{HomePage});
+	$form = "LoginOKForm";
 	$p{popup} = $authserv->renew_url( $gw ); 
 	    # set the javascript *link* to the popup box.
     }
 
 # Or something's really wrong.
 } else {
-  $authserv->display( FatalForm => "Authentication error: $!" );
+  $authserv->display( LoginForm => "Authentication error: $!" );
 }
 
 $p{logout} = $authserv->logout_url; # Make a logout link.
 
 # Execute on the plan and tell a compelling story to the user.
-print $cgi->header( -Refresh => $refresh ), $authserv->template( $form => \%p );
+$authserv->success( $form => \%p );
 
 # Fin

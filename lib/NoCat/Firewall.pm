@@ -7,24 +7,24 @@ use vars qw( @ISA @REQUIRED *ARP );
 @REQUIRED   = qw( ResetCmd PermitCmd DenyCmd );
 @ISA	    = 'NoCat';
 
-sub new {
-    my $class = shift;
-    my $self = $class->SUPER::new( @_ );
-    $self->{Peer} = {};
-    return $self;
-}
+# These config parameters get exported into the environment after a fork
+# so that they can be passed to the relevant firewall scripts.
+#
+my @Perform_Export = qw( 
+    InternalDevice ExternalDevice LocalNetwork AuthServiceAddr DNSAddr 
+);
 
 sub perform {
     my ( $self, $action, $opts ) = @_;
 
     $action = "${action}Cmd";
-    die "Can't find directive $action" unless $self->{$action};
 
     my $cmd = $self->format( $self->{$action}, $opts );
     
     if ( my $pid = fork ) {
 	return;
     } elsif ( defined $pid ) {
+	$ENV{$_} = $self->{$_} for @Perform_Export;
 	exec $cmd;
 	die "Firewall $action failure: $cmd returned $? ($!)"; # Can't happen.
     } elsif ( not defined $pid ) {
@@ -35,9 +35,6 @@ sub perform {
 sub reset {
     my $self = shift;
     
-    # Disavow all prior knowledge.
-    %{$self->{Peer}} = ();
-
     # Reset the firewall.
     $self->perform( Reset => {} );
 }
@@ -48,40 +45,13 @@ sub permit {
 
     $ip ||= $self->fetch_ip( $mac );
 
-    # Insert the rule for the new class of service...
-    #
     $self->perform( Permit => { Class => $class, MAC => $mac, IP => $ip } );
-
-    # *BEFORE* removing the rule for the *old* class of service. If any, naturally.
-    # This way we don't drop packets for stateful connections in the event of service upgrade.
-    #
-    if ( $prior_class and $class ne $prior_class ) {
-	$self->deny( $class, $mac, $ip );
-	$self->log( 9, "Upgrading peer $mac from $prior_class to $class service." );
-    }
-
-    # Note the new class of service.
-    #
-    $self->{Peer}{$mac} = $class;
 }
 
 sub deny {
     my ( $self, $class, $mac, $ip ) = @_;
-    my $prior_class = $self->{Peer}{$mac};
 
     $ip ||= $self->fetch_ip( $mac );
-
-    # If no class is specified, strip any known class-of-service from the matching peer.
-    #
-    $class ||= $prior_class;
-
-    # Note the removal of class-of-service if it matches the one we know about.
-    #
-    if ( $class and $prior_class and $prior_class eq $class ) {
-	delete $self->{Peer}{$mac};
-    } else {
-	$self->log( 4, "Denying peer $mac without prior permit." );
-    }
 
     $self->perform( Deny => { Class => $class || PUBLIC, MAC => $mac, IP => $ip } );
 }

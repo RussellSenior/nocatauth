@@ -12,7 +12,7 @@ sub new {
     my $self = $class->SUPER::new( @_ );
     
     $self->socket( $self->{Socket} ) if defined $self->{Socket};
-    $self->status( "", "" ) unless defined $self->{Status};
+    $self->class( "", "" ) unless defined $self->{Class};
     $self->timestamp;
     return $self;
 }
@@ -60,7 +60,25 @@ sub timestamp {
 
 sub expired {
     my $self = shift;
-    return ( $self->timestamp < time );
+    if ( $self->{MaxPingMisses} ) {
+        return ($self->heartbeat > $self->{MaxPingMisses}) 
+    } else {
+	return ($self->timestamp < time)
+    }
+}
+
+sub heartbeat {
+    my ( $self, $alive ) = @_;
+
+    # $self->{Pulse} = 0 unless defined $alive;
+
+    if ( $alive and $self->{Pulse} > 0 ) {
+	$self->{Pulse}--;
+    } elsif ( defined $alive and not $alive ) {
+	$self->{Pulse}++;
+    }
+
+    return $self->{Pulse};
 }
 
 sub token {
@@ -79,6 +97,7 @@ sub user {
 
 sub status {
     my ( $self, $status ) = @_;
+
     $self->{Status} = $status if defined $status;
     return( $self->{Status} || "" );
 }

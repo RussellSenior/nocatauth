@@ -7,6 +7,7 @@ use constant MEMBER => "Member";
 use constant OWNER  => "Owner";
 use constant LOGOUT => "/logout";
 
+use FindBin;
 use Exporter;
 use vars qw( @ISA @EXPORT_OK *FILE );
 use strict;
@@ -29,13 +30,20 @@ my %Defaults = (
     ### Authservice networking values.
     NotifyTimeout   => 30,
 
+    ### GPG Locations. Assumes it's in your path.
+    GpgPath	    => "gpg",
+    GpgvPath	    => "gpgv",
+    PGPKeyPath	    => "$FindBin::Bin/../pgp",
+
     ### Default log level.
     Verbosity	    => 5
 );
 
 BEGIN {
-    $SIG{__WARN__} = sub { NoCat->log( 0, @_ ) };
+    $ENV{PATH} = $FindBin::Bin . ":" . $ENV{PATH};
 }
+
+$SIG{__WARN__} = sub { NoCat->log( 0, @_ ) };
 
 sub new {
     my $class = shift;
@@ -52,7 +60,7 @@ sub new {
     # (i.e. the NOCAT environment variable was never set.)
     #
     if ( exists $self->{ConfigFile} ) {
-	$self->{ConfigFile} ||= '/usr/local/nocat/nocat.conf';
+	$self->{ConfigFile} ||= "$FindBin::Bin/../nocat.conf";
 	$self->read_config( delete $self->{ConfigFile} );
     }
 
@@ -121,8 +129,8 @@ sub read_config {
 }
 
 sub check_config {
-    my ( $self, @required ) = shift;
-    my $class = ref( $self );
+    my ( $self, @required ) = @_;
+    my $class = ref( $self ) || $self;
 
     unless ( @required ) {
 	# Try to get the @NoCat::Foo::REQUIRED list.
@@ -131,11 +139,13 @@ sub check_config {
 	@required = @$req if @$req;
     }
 
+    # warn "CHECK $self (@required)\n";
+    
     return not @required unless @required;
 
-    my @missing = grep !defined( $self->{$_} ), @required;
+    my @missing = grep { not defined $self->{$_} }  @required;
 
-    $self->log( 0, "Missing $_ directive required for $class object" )
+    $self->log( 1, "Missing $_ directive required for $class object!" )
 	for @missing;
 
     return not @missing;

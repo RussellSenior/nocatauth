@@ -20,13 +20,6 @@ sub new {
     return $self;
 }
 
-sub firewall {
-    # We need the firewall to be persistent for the duration of this session.
-    my $self = shift;
-    $self->{Firewall} = $self->SUPER::firewall(@_) unless $self->{Firewall};
-    $self->{Firewall}
-}
-
 sub run {
     my $self = shift;
     my ( @address, $fh );
@@ -64,8 +57,6 @@ sub run {
 	    my $sock	= $server->accept;
     	    my $peer	= $self->peer( $sock );
     
-	    # $self->{Peer}{ $peer->token } = $peer;
-
 	    $self->log( 8, "Connection to " . $sock->sockhost . " from " . $sock->peerhost );
 	    $self->handle( $peer );
 	}
@@ -104,14 +95,15 @@ sub handle {
 	$head{$key} = $val;
     }
 
+
     # If this is a post request, it might be the auth service contacting us.
     # Otherwise, it must be a user, who needs to be sent to the auth service.
     #
     my $target_host = $head{Host} || ""; 
 
     if ( $method eq 'POST' ) {
-	my $own_addr = $socket->sockhost || "";
-	#if ( $target_host eq $own_addr and $uri eq LOGOUT ) {
+	# my $own_addr = $socket->sockhost || "";
+	# if ( $target_host eq $own_addr and $uri eq LOGOUT ) {
 	if ( $uri eq LOGOUT ) {
 	    $self->logout( $peer );
 	} else {
@@ -123,15 +115,15 @@ sub handle {
 }
 
 sub verify {
-    my ( $self, $peer, $token ) = @_;
+    my ( $self, $peer, $mac ) = @_;
     my ( $content, $line );
     my $socket = $peer->socket;
 
-    $self->log( 8, "Received auth token $token from " . $socket->peerhost );
+    $self->log( 8, "Received notify $mac from " . $socket->peerhost );
 
     $content .= $line while (defined( $line = <$socket> ));
 
-    if ( my $client = delete $self->{Peer}{$token} ) {
+    if ( my $client = $self->{Peer}{$mac} ) {
 	my $msg = $self->message( $content );
 
 	return $self->log( 2, "Invalid auth message!" ) unless $msg->verify;
@@ -140,14 +132,15 @@ sub verify {
 	my %auth = $msg->parse;
 
 	# TODO: better error reporting back to the auth service.
-	return $self->log( 2, "Bad user/token match: $auth{User} != " . $client->user )
+	return $self->log( 2, "Bad user/MAC match: $auth{User} != " . $client->user )
 	    if $client->user and $client->user ne $auth{User};
-	return $self->log( 2, "Bad MAC/token match!" )	if $client->mac ne $auth{Mac};
-	return $self->log( 2, "Bad token match!" )	if $token ne $auth{Token};
+	return $self->log( 2, "Bad MAC match!" )	if $mac ne $auth{Mac};
+	return $self->log( 2, "Bad token match!" )	if $client->token ne $auth{Token};
 
 	# Identify the user and class.
 	$client->class( $auth{Class}, $auth{User} ); 
 
+	# Perform the requested action.
 	if ( $auth{Action} eq PERMIT ) {
 	    $self->permit( $client );
         } elsif ( $auth{Action} eq DENY ) {
@@ -155,8 +148,8 @@ sub verify {
 	}
 
 	# Store the new token away for when the peer renews its login.
-	$self->{Peer}{ $client->token(1) } = $client;
-	$self->log( 8, "Available tokens: @{[ keys %{$self->{Peer}} ]}" );
+	$client->token(1);
+	$self->log( 9, "Available MACs: @{[ keys %{$self->{Peer}} ]}" );
 	
 	# Tell the auth service we got the message.
 	$msg = $self->deparse( 
@@ -169,8 +162,8 @@ sub verify {
 
     } else {
 	$self->log( 2, "Non-existent auth request!" );
-	$self->log( 8, "Available tokens: @{[ keys %{$self->{Peer}} ]}" );
-	print $socket "HTTP/1.1 400 Bad request\n\n";
+	$self->log( 9, "Available MACs: @{[ keys %{$self->{Peer}} ]}" );
+	print $socket "HTTP/1.1 400 Session Expired\n\n";
     }
 
     $socket->close;
@@ -181,12 +174,31 @@ sub permit {
 
     $peer->timestamp(1);
 
+    # Get *our* notion of what the peer's service class should be.
+    #
     $class = $self->classify( $peer, $class );
 
-    if ( $peer->status ne PERMIT ) {
-	$self->log( 5, "User ", $peer->user, " permitted in class $class" );
+    my $prior_class = $peer->status;
+
+    if ( $prior_class ne $class ) {
+	# Insert the rule for the new class of service...
+	#
 	$self->firewall->permit( $class, $peer->mac );
-	$peer->status( PERMIT );
+	
+	# *BEFORE* removing the rule for the *old* class of service, if any.
+	# This way we don't drop packets for stateful connections in the 
+	# event of service upgrade.
+	#
+	if ( $prior_class and $prior_class ne DENY ) {
+	    $self->log( 5, "Upgrading ", $peer->user, 
+		" from $prior_class to $class service." );
+
+	    $self->firewall->deny( $prior_class, $peer->mac );
+	} else {
+	    $self->log( 5, "User ", $peer->user, " permitted in class $class" );
+	}
+
+	$peer->status( $class );
     } else {
 	$self->log( 5, "User ", $peer->user, " renewed in class $class" );
     }
@@ -194,18 +206,22 @@ sub permit {
 
 sub deny {
     my ( $self, $peer ) = @_;
-
-    delete $self->{Peer}{$peer->token};
+    my $mac	= $peer->mac or return; 
 
     # if we don't know the peer's MAC address, it must have been
     # an incidental connection (e.g. notification) that can be ignored.
-    #
-    return unless $peer->mac; 
+
+    $peer = delete $self->{Peer}{$mac}
+	or return $self->log( 4, "Denying unknown MAC address $mac?" );
+
+    my $class	= $peer->status;
+
+    return $self->log( 7, "Denying peer $mac without prior permit." )
+	if not $class or $class eq DENY;
 
     $self->log( 5, "User ", ( $peer->user || $peer->ip ), " denied service." );
 
-    $self->firewall->deny( "", $peer->mac ); 
-	# Blank class-of-service means strip ANY available class.
+    $self->firewall->deny( $class, $mac ); 
 
     $peer->status( DENY );
 }
@@ -215,12 +231,10 @@ sub classify {
 
     $class = $peer->class( $class );
 
-    if ( $class eq OWNER or $class eq MEMBER ) {
-	my $user = $peer->user;
-	return grep( $user eq $_, $self->owners ) ? OWNER : MEMBER;
-    } else {
-	return PUBLIC;
-    }
+    my $user = $peer->user;
+    
+    return OWNER if $user and grep( $user eq $_, $self->owners );
+    return $class || PUBLIC;
 }
 
 sub owners {
@@ -264,17 +278,27 @@ sub logout {
 
 sub capture {
     my ( $self, $peer, $request ) = @_;
-    my ( $peer_mac, $token );
+    my ( $mac, $token ) = $peer->mac;
 
-    $self->log( 7, "Capturing ", $peer->ip, "for $request" );
+    return $self->log( 3, "Can't capture peer ", $peer->ip, " without MAC" )
+	unless $mac;
+
+    $self->log( 7, "Capturing ", $peer->ip, " for $request" );
     
     # Remember the captured peer.	
-    $self->{Peer}{$peer->token} = $peer;
+    if ( $self->{Peer}{$mac} ) {
+	# Actually, we've seen this one before. Reuse the token.
+	my $original = $self->{Peer}{$mac};
+	$original->socket( $peer->socket );
+	$peer = $original;
+    } else {
+	$self->{Peer}{$mac} = $peer;
+    }
 
     # Smile for the GET URL.
-    ( $peer_mac, $token, $request ) = $self->url_encode( $peer->mac, $peer->token, $request );
+    ( $token, $mac, $request ) = $self->url_encode( $peer->token, $mac, $request );
 
-    $self->redirect( $peer, "$self->{AuthServiceURL}?token=$token&mac=$peer_mac&redirect=$request" );
+    $self->redirect( $peer, "$self->{AuthServiceURL}?token=$token&mac=$mac&redirect=$request" );
 }
 
 sub redirect {

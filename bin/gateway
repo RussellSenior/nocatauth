@@ -1,9 +1,33 @@
 #!/usr/bin/perl -w
 
+use lib '/usr/local/nocat/lib';
+use POSIX qw(setsid);
+use Getopt::Std;
 use NoCat;
+use strict;
 
-my $server = NoCat->gateway( ConfigFile => $ENV{NOCAT} );
+my %opt; getopts( "Rf:" => \%opt );
 
+my $config = $opt{f} || $ENV{NOCAT}; 
+my $server = NoCat->gateway( ConfigFile => $config );
+
+$server->log( 6, "Resetting firewall." );
 $server->firewall->reset;
+exit if $opt{R}; # We're done now, if -R.
+
+if ( my $log = $server->{GatewayLog} ) {
+    open STDERR, ">>$log" or die "Can't open log file $log: $!";
+    open STDOUT, ">&STDERR" or die "Can't dup STDOUT to STDERR: $!";
+}
+
+$server->log( 1, "Gateway running on port $server->{GatewayPort}." );
+
+if ( my $pid = fork ) {
+    exit;
+} elsif ( not defined $pid ) {
+    die "Can't fork: $!";
+}
+
+setsid;
 
 $server->run;

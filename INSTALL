@@ -1,15 +1,27 @@
 NoCatAuth installation guide
-ver 1.0 -- 7/25/01 SDE
+ver 1.1 -- 8/11/01 SDE
 
 ### 6 Easy Steps to Installing Your Very Own Captive Portal.
 
+Running a captive portal requires root permissions on the gateway machine.
+
 1. Make sure you have the prerequisites installed:
     
-    * Linux 2.4.x with iptables. Support for other OSes is planned, 
+    * Linux 2.4.x with iptables. You'll find a sample kernel configuration
+	in etc/linux-2.4.config. Support for other OSes is planned, 
 	especially FreeBSD. Patches welcome.
 
     * gpgv, a PGP signature verifier. gpgv comes with the gnupg package, 
 	which can be had from http://www.gnupg.org/download.html.
+
+    * You'll probably also want to run dhcpd on this machine, but DHCP
+	can in some cases be served from your access point or elsewhere on 
+	your local network. Make sure that, if you're using external DNS,
+	that your dhcpd hands out the same DNS address listed in nocat.conf.
+
+    * If you want to try the (experimental) bandwidth throttling rules,
+        you'll also need a copy of the 'tc' tool from the iproute2 package.
+        Get it at ftp://ftp.inr.ac.ru/ip-routing/.
 
 2. Unpack the NoCatAuth tarball. You probably already did this if you're
 reading this file.
@@ -18,45 +30,68 @@ reading this file.
 
 3. Read the README.
 
-4. Edit the Makefile. The only option at present is INST_PATH, which
-determines where NoCatAuth gets installed to. Default is '/usr/local/nocat'.
+4. Edit the Makefile, if necessary. The only real option at present is
+INST_PATH, which determines where NoCatAuth gets installed to. Defaults 
+to '/usr/local/nocat', so if that's okay with you, you can skip this step.
 
 5. From the NoCatAuth directory, run 'make gateway'. This will install the
 important pieces of the captive portal software.
 
 6. Edit the /usr/local/nocat/nocat.conf file to suit.
+    
+    * InternalDevice must be set to the interface name of your wireless card,
+	or the ethernet card that talks to your AP.
 
-    * AuthServiceURL and LogoutURL depend on your chosen auth service.
-	Check with them for these values.
+    * ExternalDevice must be set to the name of the network interface
+	that talks to the Internet, e.g. the ethernet card connected to your
+	DSL or cable modem.
 
-    * MessageVerify needs to point to wherever gpgv got installed in step 1.
+    * LocalNetwork needs to be set to the network address and mask of your
+	internal (e.g. wireless) network. This typically takes the form 
+	111.222.333.444/255.255.255.0, or 11.22.33.44/24, etc.
 
-    * If you changed INST_PATH to something other than /usr/local/nocat, 
-	you'll want to look at PGPKeyPath, ResetCmd, DenyCmd, and PermitCmd.
+    * DNSAddr needs to be set to the same domain name server address that your 
+	DHCP server hands out, if and only if you're using a DNS outside your
+	local network (as specified above). Otherwise, if you have an internal
+	DNS, leave this option commented out.
+
+    * AuthServiceAddr, AuthServiceURL, and LogoutURL depend on your chosen
+	auth service. Check with them for these values.
 
 ### Starting the NoCatAuth captive portal.
 
 The portal needs to know where to find (a) its perl libraries, and (b) its
-nocat.conf configuration file. If you installed nocat to /usr/local/nocat,
-NoCatAuth will figure out where to look. If you installed it elsewhere, you'll
-need to add the following variables to the environment before running the
-gateway script:
+nocat.conf configuration file. NoCatAuth tries to figure out these values
+on its own. If it can't, you may need to add the following variables to the
+shell environment before running the gateway script:
 
     $ export PERL5LIB=/path/to/nocat/lib
     $ export NOCAT=/path/to/nocat/nocat.conf
 
-Starting the gateway is then as simple as:
+Utilities like iptables, modprobe, and gpgv need to be in your $PATH somewhere
+(if they aren't already). For example:
 
-    $ /path/to/nocat/bin/gateway &
+    $ export PATH=$PATH:/sbin:/usr/sbin
+
+Starting the gateway is then as simple as: (from a root prompt)
+
+    # /path/to/nocat/bin/gateway &
+
+NOTE: You MUST run the gateway program as root, in order for it to be able to
+update the firewall rules as needed. Arguably, this is a bug. Patches welcome.
 
 ### Running Your Own Auth Service.
 
-NoCatAuth needs gpg from gnupg.org, and the Digest::MD5 and DBI modules from CPAN.
-You'll also need to install the appropriate DBD modules for your database. You'll 
-need a database to store your user accounts -- you can find table schemas in 
-etc/nocat.schema. You'll need an Apache installation with SSL working. The
-nocat.conf options should be fairly self-explanatory. You can find 
-NoCat-specific Apache configuration in etc/authserv.conf. You'll need to make
-the cgi-bin scripts accessible from somewhere.
+If you're just running a wireless node, you can skip this section.
 
-PATCHES WELCOME!
+NoCatAuth needs gpg from gnupg.org, and the Digest::MD5 and DBI modules from
+CPAN. You'll also need to install the appropriate DBD modules for your
+database. We use mysql, but the SQL isn't complex, and PostgreSQL, or indeed
+almost any other relational database should work.  You'll need a database to 
+store your user accounts -- you can find table schemas in etc/nocat.schema. 
+You'll need an Apache installation with SSL working. The nocat.conf options
+should be fairly self-explanatory. You can find NoCat-specific Apache 
+configuration in etc/authserv.conf. You'll need to make the cgi-bin scripts
+accessible from somewhere.
+
+### Thanks for using NoCatAuth. GOOD LUCK! PATCHES WELCOME!

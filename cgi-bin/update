@@ -31,7 +31,7 @@ $authserv->check_config(qw(
 # Have we filled in the form yet?  No?  If not, present one.
 ##
 
-respond "UpdateGreeting" unless $p{go};
+respond "UpdateGreeting" unless $p{"update"} or $p{"update.x"};
 
 ##
 # Do we know this joker?
@@ -47,10 +47,11 @@ respond "UpdateBadPass" unless $user->authenticate( $p{pass} );
 ##
 
 if ( $p{npass} ) {
-    respond "UpdateInvalidPass" if length $p{pass} < $authserv->{MinPasswdLength};
+    respond "UpdateInvalidPass" if length $p{npass} < $authserv->{MinPasswdLength};
     respond "UpdatePassNoMatch" if $p{npass} and $p{npass} ne $p{npass2};
 
     ( $p{pass} ) = delete @p{qw{ npass npass2 }};
+
     $user->set_password( $p{pass} );
 }
 
@@ -58,18 +59,24 @@ if ( $p{npass} ) {
 # Set any incidental fields.
 ## 
 
-my @fields = grep($_, split( /\s/, $authserv->{UpdateFields} ));
+my @fields = grep( $p{lc $_}, split( /\s/, $authserv->{UpdateFields} ));
 
 for my $f ( @fields  ) {
-    $user->set( $f => $p{$f} ) if defined $p{$f};
+    $user->set( $f => $p{lc $f} ) if defined $p{lc $f};
 }
 
-$user->store;
+if ( @fields ) {
+    $user->store;
+}
 
 ##
 # Finally, notify the user as to the outcome.
 ##
 
-$cgi->param( $_ => $p{$_} ) for keys %p;
+$cgi->param( lc($_) => $user->data->{$_} ) for keys %{$user->data};
+$cgi->param( pass => $p{pass} );
+$cgi->delete( "npass" );	
+$cgi->delete( "npass2" );	
 
-respond "UpdateSuccess";
+
+respond( @fields ? "UpdateSuccess" : "UpdateGreeting" );

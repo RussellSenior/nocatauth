@@ -5,7 +5,7 @@ use IO::Socket;
 use strict;
 use vars qw( @ISA @REQUIRED );
 
-@REQUIRED   = qw( GatewayPort NotifyTimeout LoginTimeout RenewTimeout );
+@REQUIRED   = qw( GatewayPort NotifyTimeout LoginTimeout RenewTimeout HomePage );
 @ISA	    = 'NoCat';
 
 sub cgi {
@@ -44,21 +44,30 @@ sub notify {
     my $msg = $self->message->format( %args )->sign;
 
     # Make an HTTP POST request.
-    $gateway->print( "POST $args{Token} HTTP/1.1\n" );
+    $gateway->print( "POST $args{Mac} HTTP/1.1\n" );
     $gateway->print( "Host: $gateway_ip\n\n" );
     $gateway->print( $msg->text );
-    $gateway->print( "\n\n" ); # EOF
+    $gateway->print( "\n\n" );
 
     # Done writing.
     # $gateway->shutdown( 1 );
-    shutdown( $gateway, 1 );  # IO::Socket::INET is broken in Perl 5.005?
+    shutdown( $gateway, 1 ) # IO::Socket::INET is broken in Perl 5.005?
+	or return $self->log( 4, "Shutdown gateway socket: $!" ); 
 
-    # Throw away the gateway's HTTP header.
-    $msg = "";
-    $msg = <$gateway> until $msg =~ /^\s*$/os;
-    
-    # Parse the gateway's response.
-    %args = $self->parse( <$gateway> );
+    # Get the response, then throw away the rest of the HTTP header.
+    my ( $http, $code, $response ) = split /\s+/, scalar <$gateway>;
+    $http = <$gateway> until $http =~ /^\s*$/os;
+
+    if ( $code == 200 ) { # HTTP OK
+	# Parse the gateway's response.
+	%args = $self->parse( <$gateway> );
+    } else {
+	# Save the error code.
+	$self->log( 8, "Gateway returned $code ($response) for $args{Mac}." );
+	$args{Error} = $code;
+	$args{Message} = $response;
+    }
+
     $gateway->close;
 
     return \%args;
@@ -82,6 +91,8 @@ sub renew_url {
     } else {
 	$timeout = $cgi->param( "timeout" ); 
     }
+
+    $self->log( 6, "Don't know LoginTimeout in renew_url!" ) unless $timeout;
 
     $timeout ||= $self->{LoginTimeout};
     $cgi->param( timeout => $timeout );
@@ -119,6 +130,17 @@ sub display {
     }
 
     exit;
+}
+
+sub success {
+    my ( $self, $form, $vars ) = @_;
+    my $redirect = ( $vars->{redirect} ||= $self->{HomePage} );
+
+    # Add a refresh time of five seconds... unless one is already set.
+    $redirect = "5; URL=$redirect" unless $redirect =~ /^\d+;/o;
+
+    print $self->cgi->header( -Refresh => $redirect );
+    print $self->template( $form => $vars );
 }
 
 1;

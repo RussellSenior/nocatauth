@@ -1,0 +1,11 @@
+Files in this directory include:
+
+authserv.conf	    - Sample Apache configuration snippet.
+
+linux-2.4.config    - Sample configuration for Linux 2.4 kernel,
+    including traffic shaping modules.
+
+nocat.schema	    - Sample SQL schema for Auth Service user database.
+
+vtund.conf	    - Sample vtun configuration for tunneling gateway
+    traffic past a firewall.
