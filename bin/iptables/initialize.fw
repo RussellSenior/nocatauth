@@ -192,6 +192,11 @@ if [ -n "$AllowedWebHosts" ]; then
 fi                                                                             
 
 #
+# Disable access on the external to GatewayPort from anything but the AuthServiceAddr
+#
+iptables -t filter -A FORWARD -i $ExternalDevice -s ! $AuthServiceAddr -p tcp --dport $GatewayPort -j DROP
+
+#
 # Call the bandwidth throttle rules.
 #
 # Note: This feature is *highly* experimental.

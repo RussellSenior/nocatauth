@@ -4,6 +4,8 @@
 
 * ipchains support
 
+* "Connect-Forward" gateway mode for firewalled gateways (require HTTPS on g/w)
+
 === To Do (more or less in order of importance):
 
 * Pluggable MD5 goodness (Digest::MD5 v. glibc crypt())
@@ -45,8 +47,6 @@
 * "Agree-Disagree" instead of just "Login" for splash page
 
 * User mgmt tools, including admin interface & "Forgot my password" mailer.
-
-* "Connect-Forward" gateway mode for firewalled gateways (require HTTPS on g/w)
 
 * Cookie-based persistent logins
 

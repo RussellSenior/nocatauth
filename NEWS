@@ -1,6 +1,26 @@
 Release Notes:
 ==============
 
+02/15/2002 (v0.77)
+
+I'm a dummy. Thanks to Chip Ach for pointing out my little syntax error
+in Peer.pm. Note to self: In future, run perl -cw on everything *before*
+checking into CVS. :-) 
+
+Also new this release:
+
+* A new rule in iptables/initialize.fw that denies access on the
+    ExternalInterface to the GatewayPort, unless it originates from
+    AuthServiceAddr. Should at least make NoCatAuth invisible to
+    random Internet portscans.
+
+* A little test script that runs perl -cw on everything.
+
+* Also, I'm taking the ChangeLog out of the distribution, 'cause it's vastly
+    increasing the size of the tarball. Find it on the website if you need it.
+
+-=-=-=-=-
+
 02/13/2002 (v0.76)
 
 Well, this release was a bit overdue. Included:

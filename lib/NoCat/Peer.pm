@@ -91,7 +91,7 @@ sub heartbeat {
 
 sub token {
     my ( $self, $reset ) = @_;
-    my $salt
+    my $salt;
 
     if ( defined $reset or not defined $self->{Token} ) {
 	$salt = ++substr( $self->{Token}, -8 ) if $self->{Token};
