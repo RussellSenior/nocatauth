@@ -31,7 +31,8 @@ sub sign {
     close IN;
 
     $self->{Signed}++;
-    return $self->text( $txt );
+    $self->text( $txt );
+    return $self;
 }
 
 sub verify {
@@ -64,3 +65,16 @@ sub extract {
 	return $txt;
     }
 }
+
+sub parse {
+    my ( $self, $text ) = @_;
+    return $self->SUPER::parse( $self->extract( $text ) );
+}
+
+sub format {
+    my ( $self, %args ) = @_;
+    $self->text( $self->deparse( %args ) );
+    return $self;
+}
+
+1;

@@ -16,7 +16,7 @@ sub panic {
 my $cmd = "";
 
 if($ARGV[0] =~ /^permit$/i) {
-  $cmd = "-I";
+  $cmd = "-A";
 }
 elsif($ARGV[0] =~ /^deny$/i) {
   $cmd = "-D";
@@ -25,7 +25,7 @@ else {
   panic("FATAL: Bad parameter: $ARGV[0]!\n");
 }
 
-exec("iptables -t nat $cmd PREROUTING -i $ARGV[1] -m mac --mac-source $ARGV[2] -s $ARGV[3] -j RETURN");
+exec("iptables $cmd PREROUTING -i $ARGV[1] -t mangle -m mac --mac-source $ARGV[2] -s $ARGV[3] -j MARK --set-mark 1");
 
 #
 # Ende

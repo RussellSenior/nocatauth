@@ -15,14 +15,14 @@ sub new {
     my $class = shift;
     my $self = $class->SUPER::new( @_ );
 
-    $self->{Request} = {};
-    $self->{User} = {};
+    $self->{Request} ||= {};
+    $self->{User} ||= {};
     return $self;
 }
 
 sub run {
     my $self = shift;
-    my @address;
+    my ( @address, $fh );
 
     # If no IP address is specified, try them all.
     if ( $self->{GatewayAddr} ) {
@@ -42,48 +42,44 @@ sub run {
 	@address
     );
 
-    local $SIG{CHLD} = sub { wait };
+    # Does ctrl-c'ing the server make things hang next time we reload?
+    # local $SIG{INT} = sub { $server->close if $server };
 
-    # Fork and handle connections as they come in.
+    # Handle connections as they come in.
     #
-    my $fh = ""; vec( $fh, $server->fileno, 1 ) = 1;
-
     while ( 1 ) {
 	# Spend some time waiting for something to happen.
+	vec( $fh = "", $server->fileno, 1 ) = 1;
+
 	while (select( $fh, undef, undef, $self->{PollInterval} )) {
 	    # A request!
-    	    my $client = $server->accept;
+	    my $sock	= $server->accept;
+    	    my $peer	= $self->peer( $sock );
+    
+	    $self->{Peer}{ $peer->token } = $peer;
 
-	    $self->set_cookie( $client );
-
-	    if ( my $pid = fork ) {
-		next;
-	    } elsif ( not defined $pid ) {
-	        die "gateway server can't fork: $!";
-	    } else {
-		$server->close;
-		$self->log( 8, "connection to " . $client->sockhost . " from " . $client->peerhost );
-		$self->handle( $client );
-		exit;
-	    }
+	    $self->log( 8, "Connection to " . $sock->sockhost . " from " . $sock->peerhost );
+	    $self->handle( $peer );
 	}
 
 	# If nothing happens, see if any logins have reached their timeout period.
-	for my $user ( %{$self->{User}} ) {
-	    $self->deny( $user ) if $self->{User}{$user} < time;
+	while ( my ($token, $peer) = each %{$self->{Peer}} ) {
+	    $self->deny( $peer ) if $peer->expired;
 	} 
-    }
+
+    } # loop forever
 }
 
 sub handle {
-    my ( $self, $socket ) = @_;
-    
+    my ( $self, $peer ) = @_;
+    my $socket = $peer->socket;    
+
     # Get the HTTP header intro line.
     my $line = <$socket>;
-    return $self->log( 6, "No header line from " . $socket->peerhost ) 
+    return $self->log( 6, "No header line from " . $peer->ip ) 
 	if $line =~ /^\s*$/os;
 
-    my ( $method, $uri, $http ) = split /\s+/, $line, 3;
+    my ( $method, $uri ) = split /\s+/, $line;
     my %head;
 
     $method ||= "GET";
@@ -103,67 +99,102 @@ sub handle {
     if ( $method eq 'POST' ) {
 	# if ( $head{Host} and $head{Host} eq $socket->sockhost and $uri =~ m|^/login|o ) {
 	if ( $uri =~ m|^/login|o ) {
-	    $self->renew( $socket, $uri );
+	    $self->renew( $peer, $uri );
 	} else {
-	    $self->verify( $socket, $uri );
+	    $self->verify( $peer, $uri );
 	}
     } else {
-	$self->capture( $socket, "http://$head{Host}$uri" );
+	$self->capture( $peer, "http://$head{Host}$uri" );
     }
 }
 
 sub verify {
-    my ( $self, $socket, $uri ) = @_;
+    my ( $self, $peer, $token ) = @_;
     my ( $content, $line );
+    my $socket = $peer->socket;
 
-    # $self->clear_cookie;
+    $self->log( 8, "Received auth token $token from " . $socket->peerhost );
 
-    $self->log( 8, "Received auth notification $uri from " . $socket->peerhost );
-
-    print $socket "HTTP/1.1 304 No Response\n\n";
     $content .= $line while (defined( $line = <$socket> ));
-    $socket->close;
 
-    if ( my $expected_mac = delete $self->{Request}{$uri} ) {
-	my $msg = $self->message;
-	return $self->log( 2, "Invalid auth message!" ) unless $msg->verify( $content );
+    if ( my $client = delete $self->{Peer}{$token} ) {
+	my $msg = $self->message( $content );
 
+	return $self->log( 2, "Invalid auth message!" ) unless $msg->verify;
 	$self->log( 9, "Got auth msg " . $msg->extract );
 
-	my ( $cmd, $user, $mac ) = grep( $_ ne "", split( /\s+/, $msg->extract ) );
-	return $self->log( 2, "Bad Request/MAC match!" ) if $expected_mac ne $mac;
+	my %auth = $msg->parse;
 
-	if ( $cmd eq "permit" ) {
-	    $self->permit( $user, $mac );
-        } elsif ( $cmd eq "deny" ) {
-	    $self->deny( $user, $mac );
+	# TODO: better error reporting back to the auth service.
+	return $self->log( 2, "Bad user/token match!" )
+	    if $client->user and $client->user ne $auth{User};
+	return $self->log( 2, "Bad MAC/token match!" )	if $client->mac ne $auth{Mac};
+	return $self->log( 2, "Bad token match!" )	if $token ne $auth{Token};
+
+	$client->status( $auth{Class}, $auth{User} ); 
+
+	if ( $auth{Action} =~ /^permit/io ) {
+	    $self->permit( $client );
+        } elsif ( $auth{Action}  =~ /^deny/io ) {
+	    $self->deny( $client );
 	}
+
+	$self->{Peer}{ $client->token(1) } = $client;
+	$self->log( 8, "Available tokens: @{[ keys %{$self->{Peer}} ]}" );
+	
+	$msg = $self->deparse( 
+	    User    => $client->user, 
+	    Token   => $client->token, 
+	    Timeout => $self->{LoginTimeout} 
+	);
+	$self->log( 9, "Responding with $msg" );
+	print $socket "HTTP/1.1 200 OK\n\n$msg";
+
     } else {
 	$self->log( 2, "Non-existent auth request!" );
+	$self->log( 8, "Available tokens: @{[ keys %{$self->{Peer}} ]}" );
+	print $socket "HTTP/1.1 400 Bad request\n\n";
     }
+
+    $socket->close;
 }
 
 sub permit {
-    my ( $self, $user, $mac ) = @_;
-    my $class = $self->classify( $user );
+    my ( $self, $peer, $class ) = @_;
 
-    $self->log( 5, "$user permitted in $class class" );
-    $self->firewall->permit( $class, $mac );
-    $self->{User}{$user} = time + $self->{LoginTimeout};
+    $class = $self->classify( $peer, $class );
+
+    $self->log( 5, "User ", $peer->user, " permitted in class $class" );
+    $self->firewall->permit( $class, $peer->mac );
+
+    $peer->timestamp(1);
 }
 
 sub deny {
-    my ( $self, $user, $mac ) = @_;
-    my $class = $self->classify( $user );
+    my ( $self, $peer ) = @_;
+		
+    my $class = $self->classify( $peer );
 
-    $self->log( 5, "$user denied from $class class" );
-    $self->firewall->deny( $class, $mac );
-    delete $self->{User}{$user};
+    $peer->status( "deny" );
+    delete $self->{Peer}{$peer->token};
+
+    if ( $peer->status eq "permit" ) {
+	$self->log( 5, "User ", $peer->user, " permitted in class $class" );
+	$self->firewall->deny( $class, $peer->mac );
+    }
 }
 
 sub classify {
-    my ( $self, $user ) = @_;
-    return grep( $user eq $_, $self->owners ) ? OWNER_CLASS : MEMBER_CLASS;
+    my ( $self, $peer, $class ) = @_;
+
+    $class = $peer->status( $class );
+
+    if ( $class =~ /^(member|owner)/io ) {
+	my $user = $peer->user;
+	return grep( $user eq $_, $self->owners ) ? OWNER_CLASS : MEMBER_CLASS;
+    } else {
+	return PUBLIC_CLASS;
+    }
 }
 
 sub owners {
@@ -196,56 +227,29 @@ sub owners {
 }
 
 sub capture {
-    my ( $self, $socket, $request ) = @_;
-    $self->redirect( $socket, "request=" . $self->url_encode($request) )
+    my ( $self, $peer, $request ) = @_;
+    $self->redirect( $peer, "redirect=" . $self->url_encode($request) )
 }
 
 sub renew {
-    my ( $self, $socket, $query ) = @_;
+    my ( $self, $peer, $query ) = @_;
 
     $query =~ s/^.*?\?//os;
-    $self->redirect( $socket, "mode=renew&$query" );
-}
-
-sub set_cookie {
-    my ( $self, $socket ) = @_;
-    my $peer_ip  = $socket->peerhost or die "peerhost: $!";
-    my $peer_mac = $self->firewall->fetch_mac( $peer_ip ); # or die "No MAC address for $peer_ip";
-
-    if ( $peer_mac ) {
-	$self->log( 7, "$peer_ip matches $peer_mac" );
-    } else {
-	return $self->log( 1, "Can't find MAC address for $peer_ip!" );
-    }
-
-    my $req_id = sprintf( "%x", int rand 0xFFFFFFFF );
-    $self->log( 9, "$peer_ip gets cookie $req_id" );
-    $self->{Request}{$req_id} = $peer_mac;
-    $self->{Last_Request} = $req_id;
-}
-
-sub clear_cookie {
-    my ( $self, $cookie ) = @_;
-    delete $self->{Request}{ $cookie || $self->{Last_Request} };
+    $self->redirect( $peer, "mode=renew&$query" );
 }
 
 sub redirect {
-    my ( $self, $socket, $query ) = @_;
+    my ( $self, $peer, $query ) = @_;
+    my ( $peer_mac, $token ) = $self->url_encode( $peer->mac, $peer->token );
 
-    my $peer_ip  = $socket->peerhost or die "peerhost: $!";
-    $self->log( 7, "$peer_ip requests $query" );
+    $self->log( 7, "Redirecting ", $peer->ip, "query $query to $self->{AuthServiceURL}" );
 
-    my $req_id	    = $self->{Last_Request};
-    my $peer_mac    = $self->{Request}{$req_id};
-
-    $peer_mac = $self->url_encode( $peer_mac );
-
-    $socket->print( "HTTP/1.1 302 Moved\r\n" );
-    $socket->print( "Location: $self->{AuthServiceURL}?reqid=$req_id&mac=$peer_mac&$query\r\n" );
-    $socket->print( "\r\n* Your Message Here *\r\n" );
-    $socket->close;
-
-    $self->log( 9, "$peer_ip redirected to $self->{AuthServiceURL}" );
+    $peer->socket->print( 
+	"HTTP/1.1 302 Moved\r\n",
+	"Location: $self->{AuthServiceURL}?token=$token&mac=$peer_mac&$query\r\n",
+	"\r\n* Your Message Here *\r\n" 
+    );
+    $peer->socket->close;
 }
 
-1;
+1

@@ -17,6 +17,9 @@ sub import {
 }
 
 sub new {
+    require Carp;
+    local $SIG{__WARN__} = \&Carp::cluck;
+
     my $class = shift;
     my @default = %Defaults;
     my %args = @_;
@@ -31,21 +34,58 @@ sub new {
     $self;
 }
 
-sub read_config {
-    my ( $self, $file ) = @_;
-    open FILE, "<$file" or die "Can't read config $file: $!";
+sub file {
+    my ( $self, $filename ) = @_;
 
-    while (defined( my $line = <FILE> )) {
-	# Strip leading & trailing whitespace.
-	$line =~ s/^\s+|\s+$//gos;
+    $filename = $self->{$filename} if $self->{$filename};
+    $filename = "$self->{DocumentRoot}/$filename" if $self->{DocumentRoot} and not -r $filename;    
 
-	# If it doesn't start with an alphanumeric, it's a comment.
-	next unless $line =~ /^\w/o;
+    open( FILE, "<$filename" )
+	or return $self->log( 1, "file $filename: $!" );
 
-	# Split key / value pairs.
-	my ( $key, $val ) = split /\s+/, $line, 2;
-	$self->{$key} = $val;
+    if ( wantarray ) {
+	return <FILE>;
+    } else {
+	local $/ = undef; 
+	return <FILE>;
     }
+}
+
+sub parse {
+    my ( $self, @text ) = @_;
+    my @pairs;
+
+    for my $arg ( @text ) {
+	for my $line ( split /(?:\r?\n)+/, $arg ) {
+	    # Strip leading & trailing whitespace.
+	    $line =~ s/^\s+|\s+$//gos;
+
+	    # If it doesn't start with an alphanumeric, it's a comment.
+	    next unless $line =~ /^\w/o;
+
+	    # Split key / value pairs.
+	    push @pairs, split /\s+/, $line, 2;
+	}
+    }
+
+    return @pairs;
+}
+
+sub deparse {
+    my ( $self, @vars ) = @_;
+    my $text = "";
+
+    $text .= join("\t", splice( @vars, 0, 2 )) . "\n" while @vars;
+    return $text;
+}
+
+sub read_config {
+    my ( $self, $filename ) = @_;
+    my $file	= $self->file( $filename );
+    my %args	= $self->parse( $file );
+
+    $self->{$_} = $args{$_} for (keys %args);
+    return $self;
 }
 
 sub log {
@@ -79,7 +119,7 @@ sub url_decode {
     return wantarray ? @args : $args[0];
 }
 
-sub parse {
+sub format {
     my ( $self, $string, $extra ) = @_;
 
     # Merge parameters from %$extra, if any.
@@ -91,17 +131,10 @@ sub parse {
     return $string;
 }
 
-sub parse_file {
+sub template {
     my ( $self, $filename, $extra ) = @_;
-
-    $filename = $self->{$filename} if $self->{$filename};
-    $filename = "$self->{DocumentRoot}/$filename" if $self->{DocumentRoot} and not -r $filename;    
-
-    open( FILE, "<$filename" )
-	or return $self->log( 1, "parse_file $filename: $!" );
-
-    my $file = do { local $/ = undef; <FILE> };
-    return $self->parse( $file, $extra ); 
+    my $file = $self->file( $filename );
+    return $self->format( $file, $extra ); 
 }
 
 sub gateway {
@@ -130,8 +163,16 @@ sub user {
 
 sub message {
     my $self = shift;
+    unshift @_, "Msg" if @_ == 1;
     require NoCat::Message;
     return NoCat::Message->new( Parent => $self, @_ );
 }
-    
+
+sub peer {
+    my $self = shift;
+    unshift @_, "Socket" if @_ == 1;
+    require NoCat::Peer;
+    return NoCat::Peer->new( Parent => $self, @_ );
+}
+
 1;

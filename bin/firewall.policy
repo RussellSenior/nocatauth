@@ -20,43 +20,46 @@ iptables -P FORWARD ACCEPT
 #
 iptables -F
 iptables -t nat -F
+iptables -t mangle -F
 
 #
 # Set the default packets to fw mark 4, or 'denied'.
 #
-#iptables -A OUTPUT -t mangle -j MARK --set-mark 4
+iptables -A PREROUTING -i $INTERNAL -t mangle -j MARK --set-mark 4
+
+###iptables -A FORWARD -m mark --mark 4 -j 
 
 
-# Accept traffic to the auth service
 #
-iptables -t nat -A PREROUTING -p tcp -d $AUTHSERV --dport 80 -j ACCEPT
-
-# Redirect outbound non-auth web traffic to the local gateway process
-#
-iptables -t nat -A PREROUTING -p tcp --dport 80 -d ! $AUTHSERV -j REDIRECT --to-port 5280
-
 # Accept DNS traffic to the internal
 #
-iptables -t nat -A PREROUTING -p tcp -i $INTERNAL -d $LOCAL_NET/$LOCAL_MASK --dport 53 -j ACCEPT
-iptables -t nat -A PREROUTING -p udp -i $INTERNAL -d $LOCAL_NET/$LOCAL_MASK --dport 53 -j ACCEPT
-
-iptables -t nat -A PREROUTING -j DROP
-
-#
-# Masquerade from the internal
-#
-iptables -t nat -A POSTROUTING -o $EXTERNAL -s $LOCAL_NET/$LOCAL_MASK -j MASQUERADE
+#iptables -t nat -A PREROUTING -p tcp -i $INTERNAL -d $LOCAL_NET/$LOCAL_MASK --dport 53 -j ACCEPT
+#iptables -t nat -A PREROUTING -p udp -i $INTERNAL -d $LOCAL_NET/$LOCAL_MASK --dport 53 -j ACCEPT
 
 #
 # Masquerade anything that isn't restricted.
 #
-#iptables -t nat -A POSTROUTING -o $INTERNAL -s $LOCAL_NET -m mark --mark 1 -j MASQUERADE
-#iptables -t nat -A POSTROUTING -o $INTERNAL -s $LOCAL_NET -m mark --mark 2 -j MASQUERADE
-#iptables -t nat -A POSTROUTING -o $INTERNAL -s $LOCAL_NET -m mark --mark 3 -j MASQUERADE
+iptables -t nat -A POSTROUTING -o $EXTERNAL -s $LOCAL_NET/$LOCAL_MASK -m mark --mark 1 -j MASQUERADE
+iptables -t nat -A POSTROUTING -o $EXTERNAL -s $LOCAL_NET/$LOCAL_MASK -m mark --mark 2 -j MASQUERADE
+iptables -t nat -A POSTROUTING -o $EXTERNAL -s $LOCAL_NET/$LOCAL_MASK -m mark --mark 3 -j MASQUERADE
+#iptables -t nat -A POSTROUTING -o $EXTERNAL -s $LOCAL_NET/$LOCAL_MASK -m mark --mark 4 -j MASQUERADE
+iptables -t nat -A POSTROUTING -o $EXTERNAL -s $LOCAL_NET/$LOCAL_MASK -m mark --mark 4 -d $AUTHSERV -j MASQUERADE
 
 #
-# ...and only masq port 80 on restricted class
-#iptables -t nat -A POSTROUTING -o $INTERNAL -s $LOCAL_NET -m mark --mark 4 --dport 80 -j MASQUERADE
+# Redirect outbound non-auth web traffic to the local gateway process
+#
+iptables -t nat -A PREROUTING -m mark --mark 4 -p tcp --dport 80 -d ! $AUTHSERV -j REDIRECT --to-port 5280
+
+
+# Accept traffic on the internal
+#
+iptables -t nat -A PREROUTING -i $INTERNAL -j ACCEPT
+
+
+#
+# Log all of these.
+#
+iptables -t nat -I PREROUTING -m mark --mark 4 -j LOG --log-level debug --log-ip-options
 
 #
 # Ende

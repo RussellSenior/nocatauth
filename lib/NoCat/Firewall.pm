@@ -9,11 +9,10 @@ use vars qw( @ISA *ARP );
 sub perform {
     my ( $self, $action, $opts ) = @_;
 
-    # Action takes the form of "PermitPublic", "PermitMember", "PermitOwner", "DenyPublic", etc.
-    #
+    $action = "${action}Cmd";
     die "Can't find directive $action" unless $self->{$action};
 
-    my $cmd = $self->parse( $self->{$action}, $opts );
+    my $cmd = $self->format( $self->{$action}, $opts );
     
     if ( my $pid = fork ) {
 	exec $cmd;
@@ -26,13 +25,13 @@ sub perform {
 sub permit {
     my ( $self, $class, $mac, $ip ) = @_;
     $ip ||= $self->fetch_ip( $mac );
-    $self->perform( "Permit\u\L$class", { Class => $class, MAC => $mac, IP => $ip } );
+    $self->perform( Permit => { Class => $class, MAC => $mac, IP => $ip } );
 }
 
 sub deny {
     my ( $self, $class, $mac, $ip ) = @_;
     $ip ||= $self->fetch_ip( $mac );
-    $self->perform( "DenyAccess", { Class => $class, MAC => $mac, IP => $ip } );
+    $self->perform( Deny => { Class => $class, MAC => $mac, IP => $ip } );
 }
 
 sub _read_arp_table {

@@ -1,0 +1,5 @@
+echo "NAT table:"
+iptables -t nat -L -n
+echo
+echo "Mangle table:"
+iptables -t mangle -L -n

@@ -1,7 +1,7 @@
 <html>
 <body bgcolor=c0c0c0 text=000000>
 $Message
-<form method="get" action="$CGIScript">
+<form method="get" action="$CGI">
 <table border=0 cellpadding=5 cellspacing=0>
 <tr>
   <td align=right>Login:</td>
@@ -25,7 +25,7 @@ $Message
 <p>
 
 <input type="hidden" name="mac" value="$mac">
-<input type="hidden" name="reqid" value="$reqid">
+<input type="hidden" name="token" value="$token">
 <input type="hidden" name="redirect" value="$redirect">
 </form>
 <p>

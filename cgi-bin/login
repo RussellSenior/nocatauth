@@ -31,47 +31,50 @@ $authserv->log( 7, $cgi->remote_host . " requests " . (lc $p{mode} || "form") );
 
 if ( not $p{mode} ) {
     $authserv->display( LoginForm => "LoginGreeting" );
-
 } elsif ( $p{mode} =~ /^login/io ) {
     $authserv->display( FatalForm => "Your MAC address is undefined.  Problem with the gateway?" )
 	unless $p{mac};
-    $authserv->display( FatalForm => "Your gateway cookie is undefined.  Problem with the gateway?" )
-	unless $p{reqid};
+    $authserv->display( FatalForm => "Your gateway token is undefined.  Problem with the gateway?" )
+	unless $p{token};
 }
-    
-# Are we just missing required fields?
-$authserv->display( LoginForm => "LoginMissing" ) unless $p{user} and $p{pass};
 
-##
-# Does the login info match what we have on file?
-##
+if ( $p{mode} =~ /^skip/io ) {
+    $p{user}	= "UNKNOWN";
+    $p{class}	= "Public";
+    $p{mode}	= "login"; # for renewal purposes.
+} else {
+    # Are we just missing required fields?
+    $authserv->display( LoginForm => "LoginMissing"   ) unless $p{user} and $p{pass};
 
-my $user = $authserv->user->fetch( $authserv->{UserIDField} => $p{user} );
+    # Does the login info match what we have on file?
+    my $user = $authserv->user->fetch( $authserv->{UserIDField} => $p{user} );
 
-$authserv->display( LoginForm => "LoginBadUser"   ) unless $user->id;
-$authserv->display( LoginForm => "LoginBadPass"   ) unless $user->authenticate( $p{pass} );
-$authserv->display( LoginForm => "LoginBadStatus" ) unless $user->authorize;
+    $authserv->display( LoginForm => "LoginBadUser"   ) unless $user->id;
+    $authserv->display( LoginForm => "LoginBadPass"   ) unless $user->authenticate( $p{pass} );
+    # $authserv->display( LoginForm => "LoginBadStatus" ) unless $user->authorize;
+    $p{class} = $user->authorize ? "Member" : "Public";
+}
 
 ##
 # Finally, notify the gateway (and the user) as to the outcome.
 ##
 
-my ( $form, $refresh );
+my ( $form, $refresh, $gw );
 
 if ( $p{mode} =~ /^popup/io ) {
     $form = "RenewForm";
-    $refresh = $authserv->renewal_url( "user", "pass" );
-} elsif ($authserv->notify( Permit => $p{user}, $p{mac}, $p{reqid} )) {
+    $refresh = $authserv->renewal;
+} elsif ($gw = $authserv->notify( Permit => \%p )) {
     if ( $p{mode} =~ /^renew/io ) {
 	$form = "RenewForm";
+	$refresh = $authserv->renewal( $gw );
     } else {
-	$form = "LoginForm";
+	$form = "SuccessForm";
 	$refresh = "5; URL=" . ($p{redirect} || $authserv->{HomePage});
+	$p{popup} = $authserv->renewal( $gw );
     }
 } else {
   $authserv->display( FatalForm => "Authentication error: $!" );
 }
 
-$refresh = $authserv->renewal_url( "user", "pass" ) if $form eq "RenewForm";
-
-print $cgi->header( -Refresh => $refresh ), $authserv->parse_file( $form => \%p ); 
+print $cgi->header( -Refresh => $refresh ), $authserv->template( $form => \%p ); 
