@@ -1,15 +1,24 @@
-
-Tentative TODO list (more or less in order of importance):
-
-* User mgmt tools, including admin interface & "Forgot my password" mailer.
-
-* Better error reporting from gateway to authservice during notification.
+=== Implemented but in need of testing:
 
 * "Open Portal" gateway mode
+
+=== To Do (more or less in order of importance):
 
 * Group managment tools
 
 * Group membership filtering on the gateway
+
+* User mgmt tools, including admin interface & "Forgot my password" mailer.
+
+* Anonymous (vs. Public) Class Service
+
+* "Connect-Forward" gateway mode for firewalled gateways (require HTTPS on g/w)
+
+* Better error reporting from gateway to authservice during notification.
+
+* ifconfig awareness (for getting interface/network/broadcast addresses).
+
+* Ping timeout option (instead of or in addition to repeating SSL auth)
 
 * DOCS
 
@@ -17,10 +26,6 @@ Tentative TODO list (more or less in order of importance):
 
 * Setuid firewall script wrapper (in C)
 
-* Ping timeout option (instead of or in addition to repeating SSL auth)
-
 * User-definable timeout option
-
-* Apply for SSL cert
 
 * Auth service initiated authentication 

@@ -12,8 +12,8 @@
 #
 NC=/usr/local/nocat
 
-PERL5LIB=$NC/lib
-NOCAT=$NC/nocat.conf
+export PERL5LIB=$NC/lib:$PERL5LIB
+export NOCAT=$NC/nocat.conf
 
 case "$1" in
   start)

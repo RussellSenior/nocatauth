@@ -8,8 +8,8 @@ INSTALL	    = cp -Ruv
 GPG	    = /usr/bin/gpg
 
 INST_BIN    = bin
-INST_GW	    = lib pgp nocat.conf
-INST_SERV   = cgi-bin htdocs
+INST_GW	    = lib pgp htdocs nocat.conf
+INST_SERV   = cgi-bin
 
 all: install
 
@@ -41,4 +41,8 @@ pgpkey:
 	chmod 700 $(INST_PATH)/pgp
 	$(GPG) --homedir=$(INST_PATH)/pgp --gen-key
 	$(INSTALL) $(INST_PATH)/pgp/pubring.gpg $(INST_PATH)/trustedkeys.gpg
+	@echo
+	@echo "The public key ring you'll need to distribute can be found in"
+	@echo "	   $(INST_PATH)/trustedkeys.gpg."
+	@echo
 

@@ -1,14 +1,14 @@
 package NoCat::Gateway;
 
 use IO::Socket;
-use NoCat qw( PERMIT DENY PUBLIC MEMBER OWNER LOGOUT );
-use vars qw( @ISA @REQUIRED *FILE );
+use NoCat qw( PERMIT DENY PUBLIC MEMBER OWNER );
+use vars qw( @ISA @REQUIRED @EXPORT_OK *FILE );
 use strict;
 
 @ISA	    = 'NoCat';
+@EXPORT_OK  = @NoCat::EXPORT_OK;
 @REQUIRED   = qw( 
-    GatewayPort ListenQueue PollInterval LoginTimeout 
-    AuthServiceURL LogoutURL 
+    GatewayPort ListenQueue PollInterval LoginTimeout
 );
 
 sub new {
@@ -44,8 +44,11 @@ sub bind_socket {
 	@address
     );
 
-    $self->log( 0, "Can't bind to port $self->{GatewayPort}: $!. (Is another gateway already running?)" )
+    $self->log( 0, "Can't bind to port $self->{GatewayPort}: $!.",
+	"(Is another gateway already running?)" )
 	unless $server;
+
+    $self->log( 8, "Binding listener socket to ", $server->sockhost );
 
     return( $self->{ListenSocket} = $server );
 }
@@ -94,8 +97,8 @@ sub check_peers {
 	}
     }
 }
- 
-sub handle {
+
+sub read_http_request {
     my ( $self, $peer ) = @_;
     my $socket = $peer->socket;    
 
@@ -107,9 +110,6 @@ sub handle {
     my ( $method, $uri ) = split /\s+/, $line;
     my %head;
 
-    $method ||= "GET";
-    $uri    ||= "/";
-
     # Read the HTTP header fields.
     while (defined( $line = <$socket> )) {
 	$line =~ s/^\s+|\s+$//gos;
@@ -118,78 +118,15 @@ sub handle {
 	$head{$key} = $val;
     }
 
+    $head{Method}   = $method || "GET";
+    $head{URI}	    = $uri || "/";
+    $head{URL}	    = ($head{Host} ? "http://$head{Host}$head{URI}" : $self->{HomePage}) || "";
 
-    # If this is a post request, it might be the auth service contacting us.
-    # Otherwise, it must be a user, who needs to be sent to the auth service.
-    #
-    my $target_host = $head{Host} || ""; 
-
-    if ( $method eq 'POST' ) {
-	# my $own_addr = $socket->sockhost || "";
-	# if ( $target_host eq $own_addr and $uri eq LOGOUT ) {
-	if ( $uri eq LOGOUT ) {
-	    $self->logout( $peer );
-	} else {
-	    $self->verify( $peer, $uri );
-	}
-    } else {
-	$self->capture( $peer, $target_host ? "http://$target_host$uri" : "" );
-    }
+    return \%head;
 }
 
-sub verify {
-    my ( $self, $peer, $mac ) = @_;
-    my ( $content, $line );
-    my $socket = $peer->socket;
-
-    $self->log( 8, "Received notify $mac from " . $socket->peerhost );
-
-    $content .= $line while (defined( $line = <$socket> ));
-
-    if ( my $client = $self->{Peer}{$mac} ) {
-	my $msg = $self->message( $content );
-
-	return $self->log( 2, "Invalid auth message!" ) unless $msg->verify;
-	$self->log( 9, "Got auth msg " . $msg->extract );
-
-	my %auth = $msg->parse;
-
-	# TODO: better error reporting back to the auth service.
-	return $self->log( 2, "Bad user/MAC match: $auth{User} != " . $client->user )
-	    if $client->user and $client->user ne $auth{User};
-	return $self->log( 2, "Bad MAC match!" )	if $mac ne $auth{Mac};
-	return $self->log( 2, "Bad token match!" )	if $client->token ne $auth{Token};
-
-	# Identify the user and class.
-	$client->class( $auth{Class}, $auth{User} ); 
-
-	# Perform the requested action.
-	if ( $auth{Action} eq PERMIT ) {
-	    $self->permit( $client );
-        } elsif ( $auth{Action} eq DENY ) {
-	    $self->deny( $client );
-	}
-
-	# Store the new token away for when the peer renews its login.
-	$client->token(1);
-	$self->log( 9, "Available MACs: @{[ keys %{$self->{Peer}} ]}" );
-	
-	# Tell the auth service we got the message.
-	$msg = $self->deparse( 
-	    User    => $client->user, 
-	    Token   => $client->token, 
-	    Timeout => $self->{LoginTimeout} 
-	);
-	$self->log( 9, "Responding with:\n$msg" );
-	print $socket "HTTP/1.1 200 OK\n\n$msg";
-
-    } else {
-	$self->log( 2, "Non-existent auth request!" );
-	$self->log( 9, "Available MACs: @{[ keys %{$self->{Peer}} ]}" );
-	print $socket "HTTP/1.1 400 Session Expired\n\n";
-    }
-
-    $socket->close;
+sub handle {
+    die "NoCat::Gateway cannot handle connections on its own.";
 }
 
 sub permit {
@@ -289,49 +226,19 @@ sub owners {
     return @owners;
 }
 
-sub logout {
-    my ( $self, $peer ) = @_;
-    my $sock = $peer->socket;
-
-    $self->log( 5, "User " . ($peer->user || $peer->ip) . " logging out" );
-    $self->deny( $peer );
-
-    $self->redirect( $peer => $self->{LogoutURL} );    
-}
-
-sub capture {
-    my ( $self, $peer, $request ) = @_;
-    my ( $mac, $token ) = $peer->mac;
-
-    return $self->log( 3, "Can't capture peer ", $peer->ip, " without MAC" )
-	unless $mac;
-
-    $self->log( 7, "Capturing ", $peer->ip, " for $request" );
-    
-    # Remember the captured peer.	
-    if ( $self->{Peer}{$mac} ) {
-	# Actually, we've seen this one before. Reuse the token.
-	my $original = $self->{Peer}{$mac};
-	$original->socket( $peer->socket );
-	$peer = $original;
-    } else {
-	$self->{Peer}{$mac} = $peer;
-    }
-
-    # Smile for the GET URL.
-    ( $token, $mac, $request ) = $self->url_encode( $peer->token, $mac, $request );
-
-    $self->redirect( $peer, "$self->{AuthServiceURL}?token=$token&mac=$mac&redirect=$request" );
-}
-
 sub redirect {
     my ( $self, $peer, $url ) = @_;
 
-    $peer->socket->print( 
+    $peer->socket->print(
 	"HTTP/1.1 302 Moved\r\n",
-	"Location: $url\r\n",
-	"\r\n* Your Message Here *\r\n" 
-    );
+	"Location: $url\r\n\r\n", qq{
+<html>
+<body bgcolor="white" text="black">
+You should be redirected now.  If not, click <a href="$url">here.</a>
+</body>
+</html>
+});
+
     $peer->socket->close;
 }
 

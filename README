@@ -1,4 +1,4 @@
-NoCat Authentication v.0.42
+NoCat Authentication v.0.45
 ===========================
 (c) 2001 Schuyler Erle & Robert Flickenger.
 
@@ -23,7 +23,37 @@ http://nocat.net/download/NoCatAuth/
 Release Notes:
 ==============
 
+09/15/2001 (v0.45)
+
+Oops.  Quick bugfix: the revised NoCat.pm wasn't checked into 
+v0.43 (it was a laaaaaaate nite.)  It's all better now.
+
+RJF
+
+-=-=-=-=-
+
+09/15/2001 (v0.43)
+
+Support for Open portal mode is now included.  Set the 
+"GatewayMode" directive to "Open" in the nocat.conf on your
+gateway, and it will display a simple splash page rather than
+connect to the auth system.  Set it to "Captive" for regular
+Captive portal mode.
+
+
+RJF
+
+-=-=-=-=-
+
 08/15/2001 (v0.42)
+
+Another quick maintenance release.
+
+RJF
+
+-=-=-=-=-
+
+08/15/2001 (v0.41)
 
 Largely a maintenance release, with a new firewall feature:
 IncludePorts and ExcludePorts (see INSTALL and sample

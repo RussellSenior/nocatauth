@@ -85,7 +85,7 @@ problems.
 Otherwise, you may need to add the following variables to the
 shell environment before running the gateway script:
 
-    $ export PERL5LIB=/path/to/nocat/lib
+    $ export PERL5LIB=/path/to/nocat/lib:$PERL5LIB
     $ export NOCAT=/path/to/nocat/nocat.conf
 
 Utilities like iptables, modprobe, and gpgv need to be in your $PATH somewhere
@@ -95,7 +95,7 @@ Utilities like iptables, modprobe, and gpgv need to be in your $PATH somewhere
 
 Starting the gateway is then as simple as: (from a root prompt)
 
-    # /path/to/nocat/bin/gateway &
+    # /path/to/nocat/bin/gateway
 
 NOTE: You MUST run the gateway program as root, in order for it to be able to
 update the firewall rules as needed. Arguably, this is a bug. Patches welcome.
@@ -125,5 +125,11 @@ You'll need an Apache installation with SSL working. The nocat.conf options
 should be fairly self-explanatory. You can find NoCat-specific Apache 
 configuration in etc/authserv.conf. You'll need to make the cgi-bin scripts
 accessible from somewhere.
+
+Work is actively in progress to integrate a single shared membership database
+for the various wireless groups that have expressed an interest in
+participating. If you're starting a community wireless network of your own,
+and might be interested in roaming agreements with other groups, drop us a
+line at authservice@nocat.net.
 
 ### Thanks for using NoCatAuth. GOOD LUCK! PATCHES WELCOME!

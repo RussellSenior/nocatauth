@@ -17,6 +17,7 @@ use strict;
 
 my %Defaults = (
     ### Gateway server networking values.
+    GatewayMode	    => "Captive",
     GatewayPort	    => 5280, 
     PollInterval    => 10,
     ListenQueue	    => 10,
@@ -34,6 +35,9 @@ my %Defaults = (
     GpgPath	    => "gpg",
     GpgvPath	    => "gpgv",
     PGPKeyPath	    => "$FindBin::Bin/../pgp",
+
+    ### Where to look for form templates?
+    DocumentRoot    => "$FindBin::Bin/../htdocs",
 
     ### Default log level.
     Verbosity	    => 5
@@ -71,8 +75,11 @@ sub new {
 sub file {
     my ( $self, $filename ) = @_;
 
-    $filename = $self->{$filename} if $self->{$filename};
-    $filename = "$self->{DocumentRoot}/$filename" if $self->{DocumentRoot} and not -r $filename;    
+    $filename = $self->{$filename}
+	if $self->{$filename};
+
+    $filename = "$self->{DocumentRoot}/$filename"
+	if $self->{DocumentRoot} and not -r $filename;    
 
     open( FILE, "<$filename" )
 	or return $self->log( 1, "file $filename: $!" );
@@ -162,7 +169,8 @@ sub log {
 	$yr += 1900; $mo++; chomp @msg;
 
 	# Log message takes form: [YYYY-MM-DD HH-MM-SS] *Your message here*
-	print STDERR (sprintf( "[%04d-%02d-%02d %02d:%02d:%02d] %s\n", $yr, $mo, $d, $h, $m, $s, "@msg" ));
+	print STDERR (sprintf( "[%04d-%02d-%02d %02d:%02d:%02d] %s\n",
+	    $yr, $mo, $d, $h, $m, $s, "@msg" ));
     }
     return;
 }
@@ -201,9 +209,27 @@ sub template {
 }
 
 sub gateway {
-    my $self = shift;
-    require NoCat::Gateway;
-    return NoCat::Gateway->new( Parent => $self, @_ );
+    my $self	  = shift;
+
+    # We have to make a bootstrap object in order to load
+    # the config file and figure
+    # out which subclass to load. This is arguably the wrong
+    # way of doing it and should be fixed.
+
+    unless ( ref $self ) {
+        require NoCat::Gateway;
+        $self = NoCat::Gateway->new( @_ );
+    }
+
+    my $class = "NoCat::Gateway::$self->{GatewayMode}";
+
+    $self->log( 1, "GatewayMode parameter contains invalid characters" )
+    	if $class =~ s/[^\w:]//gos;
+
+    eval "require $class"
+	or die "Can't run in '$self->{GatewayMode}' mode: $@";
+
+    return $class->new( Parent => $self, @_ );
 }
 
 sub firewall {
