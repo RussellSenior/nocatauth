@@ -12,13 +12,14 @@
 ##
 ###
 
-use lib '/usr/local/nocat/lib'; # or wherever.
+#use lib '/usr/local/nocat/lib'; # or wherever.
+use lib '../lib';
 use NoCat;
 use strict;
 
 my $authserv	= NoCat->auth_service( ConfigFile => $ENV{NOCAT} );
 my $cgi		= $authserv->cgi;
-my %p		= $cgi->Vars;
+my %params	= $cgi->Vars;
 
 $authserv->check_config(qw(
     RegisterForm RegisterGreeting RegisterUserExists RegisterBadUser
@@ -32,25 +33,25 @@ sub respond { $authserv->display( RegisterForm => @_ ) }
 # Have we filled in the form yet?  No?  If not, present one.
 ##
 
-respond "RegisterGreeting" unless $p{register} or $p{"register.x"};
+respond "RegisterGreeting" unless $params{register} or $params{"register.x"};
 
 ##
 # Are we just missing required fields?
 ##
 
-respond "RegisterMissing" unless grep( $_, @p{qw{ user name pass pass2 }} ) == 4;
+respond "RegisterMissing" unless grep( $_, @params{qw{ user name pass pass2 }} ) == 4;
 
 ##
 # Does the user already exist, is the username not an e-mail address, 
 # is the password too short, do the passwords not match?
 ##
 
-my $user = $authserv->user->fetch( $authserv->{UserIDField} => $p{user} );
+my $user = $authserv->user->fetch( $params{user} );
 
 respond "RegisterUserExists"	if $user->id;
-respond "RegisterBadUser"	unless $p{user} =~ /^[\w.+-]+\@[\w.-]+\.[\w.]+$/o;
-respond "RegisterInvalidPass"	if length $p{pass} < $authserv->{MinPasswdLength};
-respond "RegisterPassNoMatch"	if $p{pass} ne $p{pass2};
+respond "RegisterBadUser"	unless $params{user} =~ /^[\w.+-]+\@[\w.-]+\.[\w.]+$/o;
+respond "RegisterInvalidPass"	if length $params{pass} < $authserv->{MinPasswdLength};
+respond "RegisterPassNoMatch"	if $params{pass} ne $params{pass2};
 
 ##
 # Finally, notify the user as to the outcome.
@@ -59,16 +60,16 @@ respond "RegisterPassNoMatch"	if $p{pass} ne $p{pass2};
 my @fields = grep($_, split( /\s/, $authserv->{RegisterFields} ));
 
 for my $f ( @fields  ) {
-    $user->set( $f => $p{lc $f} ) if defined $p{lc $f};
+    $user->set( $f => $params{lc $f} ) if defined $params{lc $f};
 }
 
 $user->set( 
-    $authserv->{UserIDField}	 => $p{user},
-    $authserv->{UserPasswdField} => $p{pass}
+    $authserv->{UserIDField}	 => $params{user},
+    $authserv->{UserPasswdField} => $params{pass}
 );
 
 $user->create;
 
-$authserv->success( RegisterOKForm => \%p );
+$authserv->success( RegisterOKForm => \%params );
 
 # Fin

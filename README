@@ -4,14 +4,30 @@ NoCat Authentication v.0.52
 
 Credits
 =======
-The software has been largely written by Schuyler Erle, with a
-herculean amount of motivation and assistance from Rob
-Flickenger.  Moral support and testing effort has been provided by
-Nate Boblitt, Jim Rosenbaum, and Adam Flaherty, who also did a
-lot of work on the look and feel of the auth service. Additional
-testing was provided by Terry Schmidt and Rich Gibson. Rich has also
-submitted significant documentation patches. Terrie Miller provided
-us with the original design for the website.
+
+Core dev team:
+
+* Schuyler Erle
+* Rob Flickenger
+
+NoCat Website design:
+
+* Adam Flaherty
+* Terrie Miller
+
+Other NoCat Cats (support, testing, code, bug reports, and general
+well-wishing):
+
+* Jim Rosenbaum
+* Nate Boblitt
+* Rich Gibson
+* Terry Schmidt
+
+This code also includes contributions from:
+
+* Michael Bailey (LocalGateway patch and some filesystem restructuring.)
+* Steve Beattie (ipchains support)
+* Pasi Lahtinen (fix for RedHat 7.1 ipchains/iptables strangeness)
 
 We hope NoCat Auth helps you provide unlimited bandwidth
 everywhere for free.
@@ -23,6 +39,24 @@ http://nocat.net/download/NoCatAuth/
 
 Release Notes:
 ==============
+
+10/25/2001 (v0.60)
+
+Big update:
+
+* Pluggable authentication sources: NoCatAuth now (theoretically)
+  supports any kind of dynamic firewall.
+
+* ipchains support (and a start on ipfilter support)
+
+* User auth code rewritten
+
+* LocalGateway can now be defined in nocat.conf.  This means 
+  that you too can run the Auth system and a Gateway on the same
+  Machine!  (not that we'd recommend it, but so many people asked
+  for it, so here you are.  =)
+
+-=-=-=-=-
 
 09/25/2001 (v0.52)
 

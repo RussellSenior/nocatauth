@@ -10,6 +10,7 @@ use constant ANY    => "Any";
 
 use FindBin;
 use Exporter;
+use Carp;
 use vars qw( @ISA @EXPORT_OK *FILE );
 use strict;
 
@@ -30,6 +31,7 @@ my %Defaults = (
     RenewTimeout    => .75,
 
     ### Authservice networking values.
+    DataSource	    => "DBI",
     NotifyTimeout   => 30,
 
     ### GPG Locations. Assumes it's in your path.
@@ -124,11 +126,11 @@ sub deparse {
 sub read_config {
     my ( $self, $filename ) = @_;
 
-    die "No config file specified! Does \$NOCAT point to your nocat.conf?\n"
+    croak "No config file specified! Does \$NOCAT point to your nocat.conf?\n"
 	unless $filename;
 
     my $file	= $self->file( $filename ) 
-	or die "Can't read config file $filename: $!";
+	or croak "Can't read config file $filename: $!";
 
     my %args	= $self->parse( $file );
 
@@ -209,28 +211,35 @@ sub template {
     return $self->format( $file, $extra ); 
 }
 
-sub gateway {
-    my $self	  = shift;
+sub instantiate {
+    my $self	= shift;
+    my $class 	= shift;
+    my ( $super, $config );
 
-    # We have to make a bootstrap object in order to load
-    # the config file and figure
-    # out which subclass to load. This is arguably the wrong
-    # way of doing it and should be fixed.
-
-    unless ( ref $self ) {
-        require NoCat::Gateway;
-        $self = NoCat::Gateway->new( @_ );
+    if ( $super = ref $self ) {
+	# $self is an object, which presumably already has the config data.
+	$config = $self;	
+    } else {
+	# Gotta instantiate a bootstrap object to load up the config data.
+	$config = NoCat->new( @_ );
+	$super  = $self;
     }
 
-    my $class = "NoCat::Gateway::$self->{GatewayMode}";
+    $class = "$super\::$config->{$class}";
 
-    $self->log( 1, "GatewayMode parameter contains invalid characters" )
-    	if $class =~ s/[^\w:]//gos;
+    croak "Source class $class contains invalid characters"
+	if $class =~ y/A-Za-z0-9_://cd;
 
-    eval "require $class"
-	or die "Can't run in '$self->{GatewayMode}' mode: $@";
+    eval "require $class" or
+        croak "Can't load class '$class'";
 
     return $class->new( Parent => $self, @_ );
+}
+
+sub gateway {
+    my $self	  = shift;
+    require NoCat::Gateway;
+    return NoCat::Gateway->new( Parent => $self, @_ );
 }
 
 sub firewall {
@@ -245,10 +254,22 @@ sub auth_service {
     return NoCat::AuthService->new( Parent => $self, @_ );
 }
 
+sub source {
+    my $self = shift;
+    require NoCat::Source;
+    return NoCat::Source->new( Parent => $self, @_ );
+}
+
 sub user {
     my $self = shift;
     require NoCat::User;
     return NoCat::User->new( Parent => $self, @_ );
+}
+
+sub group {
+    my $self = shift;
+    require NoCat::Group;
+    return NoCat::Group->new( Parent => $self, @_ );
 }
 
 sub message {

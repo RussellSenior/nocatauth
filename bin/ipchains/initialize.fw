@@ -1,0 +1,166 @@
+#!/bin/sh
+#
+# Inspired by  and code comments stolen from the IPFilter initialize.fw
+# script.
+# Written by Steve Beattie <steve@wirex.net>
+#
+
+# Enable IP forwarding.
+#
+sysctl -w net.ipv4.ip_forward=1
+
+# Load alllll the kernel modules we need.
+#
+# NOTE: (FIXME) assume for now that ipchains stuff is compiled in.
+
+#
+# By default, accept everything. 
+# NOTE: or maybe not, I dislike accepting forwarding by default. 
+#
+ipchains -P input ACCEPT
+ipchains -P output ACCEPT
+ipchains -P forward DENY
+
+#
+# Flush all tables and delete any user defined chains
+#
+ipchains -F
+ipchains -X
+
+#
+# create two user defined chains: one for authorized users, and one for
+# restrictions for non-authorized users. 
+#
+# The plan here is that all packets coming in on the InternalDevice
+# should go through the auth chain. If it's from an approved
+# (authorized) ip addr, then it will return to the input chain, where
+# the normal nocat restrictions will be in place. If it's not from an
+# approved ip addr, it will fall through the auth chain to the noauth
+# chain, which has the redirection to the nocatauth port rules.
+#
+ipchains -N auth
+ipchains -N noauth
+
+#
+# Set the default packets to fw mark 4, or 'denied'.
+#
+# NOTE: IPChains has built-in support for 'marking', but doesn't make
+# any decisions based on it.
+
+#
+# Masquerade anything that isn't restricted.
+#
+# The current service classes by fwmark are:
+#
+#  1: Owner
+#  2: Co-op
+#  3: Public
+#  4: Denied
+#
+# NOTE: IPChains has built-in support for 'marking', but doesn't make
+# any decisions based on it.
+
+#
+# For all other IP packets, simply map to the external interface.
+#
+ipchains -A forward -s ${LocalNetwork} -d 0.0.0.0/0 -i ${ExternalDevice} -p all -j MASQ
+
+#
+# This is the only rule for the auth chain at initialization. When a
+# user is accepted, a rule for that user will need to be inserted into
+# this chain with target RETURN.
+#
+ipchains -A auth -i ${InternalDevice} -p all -j noauth
+
+#
+# Redirect outbound non-auth web traffic to the local gateway process
+# Anything else should just be droppedi (and logged).
+#
+ipchains -A noauth -i ${InternalDevice} -p tcp -d 0.0.0.0/0 80 -j REDIRECT ${GatewayPort}
+ipchains -A noauth -i ${InternalDevice} -p tcp -d 0.0.0.0/0 443 -j REDIRECT ${GatewayPort}
+ipchains -A noauth -i ${InternalDevice} -p all -l -j REJECT
+
+
+#
+# Accept DNS traffic from the internal to DNSAddr if defined,
+# otherwise Masquerade to the local host (as you must be running a caching server).
+#
+# NOTE: is this correct or does the dns stuff need to be there for
+# non-auth clients as well?
+#
+if [ -z $DNSAddr ]; then
+  ipchains -A input -i ${InternalDevice} -p tcp -d ${LocalNetwork} 53 -j ACCEPT
+  ipchains -A input -i ${InternalDevice} -p udp -d ${LocalNetwork} 53 -j ACCEPT
+else 
+  ipchains -A input -i ${InternalDevice} -p tcp -d ${DNSAddr} 53 -j ACCEPT
+  ipchains -A input -i ${InternalDevice} -p udp -d ${DNSAddr} 53 -j ACCEPT
+fi
+
+#
+# Lock down more ports for public users, if specified.
+#
+# There are two philosophies in restricting access:  That Which Is Not
+# Specifically Permitted Is Denied, and That Which Is Not Specifically
+# Denied Is Permitted.
+#
+# If "IncludePorts" is defined, the default policy will be to deny all
+# traffic, and only allow the ports mentioned.
+#
+# If "ExcludePorts" is defined, the default policy will be to allow all
+# traffic, except to the ports mentioned.
+#
+# If both are defined, ExcludePorts will be ignored, and the default policy
+# will be to deny all traffic, allowing everything in IncludePorts, and
+# issue a warning.
+#
+if [ "$IncludePorts" ]; then
+
+  if [ "$ExcludePorts" ]; then
+    echo "Warning: ExcludePorts and IncludePorts are both defined."
+    echo "Ignoring 'ExcludePorts'.  Please check your nocat.conf."
+  fi
+
+  #
+  # Enable all ports in IncludePorts
+  #
+  #echo "Enabling public access to these ports: $IncludePorts"
+  
+  for port in $IncludePorts; do
+    ipchains -A input -i ${InternalDevice} -p tcp -d 0.0.0.0/0 ${port} -j ACCEPT
+  done
+
+  # Always permit access to the GatewayPort (or we can't logout)
+  #
+  ipchains -A input -i ${InternalDevice} -p tcp --dport ${GatewayPort} -j ACCEPT
+  
+  # ...and disable access to the rest.
+  #
+  ipchains -A input -i ${InternalDevice} -p tcp -j DENY
+
+elif [ "$ExcludePorts" ]; then
+  #
+  # If ExcludePorts has entries, simply deny access to them.
+  #
+  #echo "Denying public access to these ports: $ExcludePorts"
+
+  for port in $ExcludePorts; do
+    ipchains -A input -i ${InternalDevice} -p tcp --dport ${port} -j DENY
+  done
+fi
+  
+
+#
+# Accept remaining traffic on the internal (unless noted above)
+#
+# NOTE: The default policies are ALLOW so this is not necessary.
+
+#
+# Enable Logging
+#
+# Call the bandwidth throttle rules.
+#
+# ENOTDONEYET
+
+#
+# Ende
+#

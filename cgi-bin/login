@@ -17,13 +17,14 @@
 ##
 ###
 
-use lib '/usr/local/nocat'; # or wherever.
+#use lib '/usr/local/nocat'; # or wherever.
+use lib '../lib/';
 use NoCat;
 use strict;
 
 my $authserv	= NoCat->auth_service( ConfigFile => $ENV{NOCAT} );
 my $cgi		= $authserv->cgi;
-my %p		= $cgi->Vars;
+my %params	= $cgi->Vars;
 
 # Debug configuration setup.
 $authserv->check_config(qw( 
@@ -32,84 +33,78 @@ $authserv->check_config(qw(
 ));
 
 $authserv->log( 7, sprintf( "User %s from %s requests %s", 
-    $p{user} || "", $cgi->remote_host, lc( $p{mode} ) || "form" ) );
+    $params{user} || "UNKNOWN", $cgi->remote_host, lc( $params{mode} ) || "form" ) );
 
-# Make concessions for image buttons (which don't have value="" attributes).
-if (my ($button) = grep $p{"mode_$_.x"}, qw( login skip logout )) {
-    $cgi->param( mode => ($p{mode} = $button) );
-    for ( "mode_$button.x", "mode_$button.y" ) {
-	delete $p{$_};
-	$cgi->delete($_);
-    }	
+# Figure out which image button was clicked (since they don't have value="" attributes).
+if (my ($button) = grep $params{"mode_$_.x"}, qw( login skip logout )) {
+    $cgi->delete( $_ ) for ( "mode_$button.x", "mode_$button.y" );
+    $cgi->param( mode => $button );
+    $params{mode} = $button;
 }
 
 # Have we filled in the form yet?  No?  If not, present one.
-$authserv->display( LoginForm => "LoginGreeting" ) unless $p{mode};
+$authserv->display( LoginForm => "LoginGreeting" ) unless $params{mode};
 
 # Verify prerequisites.
 $authserv->display( FatalForm => "Your MAC address is undefined.  Problem with the gateway?" )
-    unless $p{mac};
+    unless $params{mac};
 $authserv->display( FatalForm => "Your gateway token is undefined.  Problem with the gateway?" )
-    unless $p{token};
+    unless $params{token};
 
-# If the user skipped authentication, set public-class service.
-if ( $p{mode} =~ /^skip/io or ( $p{class} and $p{class} =~ /^public/io ) ) {
-    $p{user}	||= "UNKNOWN";
-    $p{class}	= "Public";
+# If the user skipped authentication...
+if ( $params{mode} =~ /^skip/io or $params{anonymous} ) {
+    $cgi->param( anonymous => 1 );
+    $params{user} = $params{member} = "UNKNOWN";
 
 # Otherwise, attempt to authenticate the user.
 } else {
     # Are we just missing required fields?
-    $authserv->display( LoginForm => "LoginMissing"   ) unless $p{user} and $p{pass};
+    $authserv->display( LoginForm => "LoginMissing"   ) unless $params{user} and $params{pass};
 
     # Does the login info match what we have on file?
-    my $user = $authserv->user->fetch( $authserv->{UserIDField} => $p{user} );
+    my $user = $authserv->user->fetch( $params{user} );
 
-    $authserv->display( LoginForm => "LoginBadUser"   ) unless $user->id;
-    $authserv->display( LoginForm => "LoginBadPass"   ) unless $user->authenticate( $p{pass} );
-    # $authserv->display( LoginForm => "LoginBadStatus" ) unless $user->authorize;
+    $authserv->display( LoginForm => "LoginBadUser" ) unless $user->id;
+    $authserv->display( LoginForm => "LoginBadPass" ) unless $user->authenticate( $params{pass} );
 
-    # Set the service class based on the user's authorization.
-    $p{member}	= join(" ", $user->authorize);
-    $p{class}	= $p{member} ? "Member" : "Public";
+    # Set the service class based on the user's authorization (if any).
+    my $member = join( " ", $user->groups );
+    $params{member} = $member if $member;	
 }
-
-# Set the class variable for $authserv->renewal.
-$cgi->param( class => $p{class} );
 
 # Finally, notify the gateway (and the user) as to the outcome.
 my ( $form, $gw );
 
 # Either we're requesting the renewal popup box...
-if ( $p{mode} =~ /^popup/io ) {
+if ( $params{mode} =~ /^popup/io ) {
     $form = "RenewForm";
-    $p{redirect} = $authserv->renew_url;
+    $params{redirect} = $authserv->renew_url;
 
 # Or we're either logging in, or renewing, in which case, notify the gateway.
-} elsif ($gw = $authserv->notify( Permit => \%p )) {
+} elsif ($gw = $authserv->notify( Permit => \%params )) {
 
     if ( $gw->{Error} ) {
 	# Oddly enough, this isn't really success.
 	$form = "ExpiredForm";
 
-    } elsif ( $p{mode} =~ /^renew/io ) {
+    } elsif ( $params{mode} =~ /^renew/io ) {
 	$form = "RenewForm";
-	$p{redirect} = $authserv->renew_url( $gw );
+	$params{redirect} = $authserv->renew_url( $gw );
 
     } else {
 	$form = "LoginOKForm";
-	$p{popup} = $authserv->renew_url( $gw ); 
+	$params{popup} = $authserv->renew_url( $gw ); 
 	    # set the javascript *link* to the popup box.
     }
 
 # Or something's really wrong.
 } else {
-  $authserv->display( LoginForm => "Authentication error: $!" );
+  $authserv->display( LoginForm => "Authentication error for connection $params{token}: $!" );
 }
 
-$p{logout} = $authserv->logout_url; # Make a logout link.
+$params{logout} = $authserv->logout_url; # Make a logout link.
 
 # Execute on the plan and tell a compelling story to the user.
-$authserv->success( $form => \%p );
+$authserv->success( $form => \%params );
 
 # Fin

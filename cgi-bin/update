@@ -12,13 +12,14 @@
 ##
 ###
 
-use lib '/usr/local/nocat/lib'; 
+#use lib '/usr/local/nocat/lib'; 
+use lib '../lib';
 use NoCat;
 use strict;
 
 my $authserv	= NoCat->auth_service( ConfigFile => $ENV{NOCAT} );
 my $cgi		= $authserv->cgi;
-my %p		= $cgi->Vars;
+my %params	= $cgi->Vars;
 
 sub respond { $authserv->display( UpdateForm => @_ ) }
 
@@ -31,38 +32,38 @@ $authserv->check_config(qw(
 # Have we filled in the form yet?  No?  If not, present one.
 ##
 
-respond "UpdateGreeting" unless $p{"update"} or $p{"update.x"};
+respond "UpdateGreeting" unless $params{"update"} or $params{"update.x"};
 
 ##
 # Do we know this joker?
 ##
 
-my $user = $authserv->user->fetch( $authserv->{UserIDField} => $p{user} );
+my $user = $authserv->user->fetch( $params{user} );
 
-respond "UpdateBadUser" unless $user->id;
-respond "UpdateBadPass" unless $user->authenticate( $p{pass} );
+respond "UpdateBadUser" unless $user and $user->id;
+respond "UpdateBadPass" unless $user->authenticate( $params{pass} );
 
 ##
 # Does this user want to reset their password? Be careful.
 ##
 
-if ( $p{npass} ) {
-    respond "UpdateInvalidPass" if length $p{npass} < $authserv->{MinPasswdLength};
-    respond "UpdatePassNoMatch" if $p{npass} and $p{npass} ne $p{npass2};
+if ( $params{npass} ) {
+    respond "UpdateInvalidPass" if length $params{npass} < $authserv->{MinPasswdLength};
+    respond "UpdatePassNoMatch" if $params{npass} and $params{npass} ne $params{npass2};
 
-    ( $p{pass} ) = delete @p{qw{ npass npass2 }};
+    ( $params{pass} ) = delete @params{qw{ npass npass2 }};
 
-    $user->set_password( $p{pass} );
+    $user->set_password( $params{pass} );
 }
 
 ##
 # Set any incidental fields.
 ## 
 
-my @fields = grep( $p{lc $_}, split( /\s/, $authserv->{UpdateFields} ));
+my @fields = grep( $params{lc $_}, split( /\s/, $authserv->{UpdateFields} ));
 
 for my $f ( @fields  ) {
-    $user->set( $f => $p{lc $f} ) if defined $p{lc $f};
+    $user->set( $f => $params{lc $f} ) if defined $params{lc $f};
 }
 
 if ( @fields ) {
@@ -74,7 +75,7 @@ if ( @fields ) {
 ##
 
 $cgi->param( lc($_) => $user->data->{$_} ) for keys %{$user->data};
-$cgi->param( pass => $p{pass} );
+$cgi->param( pass => $params{pass} );
 $cgi->delete( "npass" );	
 $cgi->delete( "npass2" );	
 

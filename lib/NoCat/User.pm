@@ -6,10 +6,7 @@ use strict;
 use vars qw( @REQUIRED @ISA );
 
 @ISA	    = 'NoCat';
-@REQUIRED   = qw( 
-    Database DB_User DB_Passwd UserTable 
-    UserIDField UserPasswdField UserAuthField 
-);
+@REQUIRED   = qw( UserIDField UserPasswdField );
 
 # new() instantiates a new NoCat::User object and returns it. 
 # You'll probably want to use NoCat->user() to call this for you.
@@ -19,16 +16,18 @@ sub new {
     my $class = shift;
     my $self = $class->SUPER::new( @_ );
 
-    delete $self->{Own_DB};
-
     $self->{Data}   ||= {};
-    $self->{Group}  ||= {};
-    $self->{Former} ||= {};
     
     if ( my $new_pw = $self->passwd ) {
 	$self->set_password( $new_pw );
     } 
     return $self;
+}
+
+sub source {
+    my $self = shift;
+    $self->{Source} ||= $self->SUPER::source( @_ );
+    return $self->{Source};
 }
 
 # set() takes a hash of values to set within the NoCat::User object.
@@ -73,37 +72,12 @@ sub passwd {
     return $self->{Data}{ $self->{UserPasswdField} };
 }
 
-# db() instantiates (as needed) and returns a connection to an external database.
-#
-sub db {
-    my $self = shift;
-
-    return $self->{DB} if $self->{DB};
-
-    require DBI;
-    $self->{Own_DB}++;
-    $self->{DB} = DBI->connect( @$self{qw{ Database DB_User DB_Passwd }}, { RaiseError => 1 } );
-}
-
-sub where {
-    my $self	= shift;
-    my $delimit	= shift;
-    return join(" $delimit ", map( "$_ = ?", @_ ));
-}
-
 # create() stores a new NoCat::User object after it's been populated.
 #
 sub create {
-    my $self	= shift;
-
-    $self->{Data}{$self->{UserStampField}} = undef if $self->{UserStampField};
-
-    my @fields	= keys %{$self->{Data}};
-    my @place	= ("?") x @fields;
- 
-    local $" = ", ";
-    $self->db->do( "insert into $self->{UserTable} (@fields) values (@place)", 
-	{}, values %{$self->{Data}} );
+    my $self = shift;
+    $self->source->create_user( $self );
+    return $self;
 }
 
 # fetch() retrieves an existing NoCat::User object from the database.
@@ -114,75 +88,15 @@ sub create {
 #      ... is probably the logical way to fetch a user uniquely identified as "Foo".
 #
 sub fetch {
-    my ( $self, %where )    = @_;
-    my $ever = $self->where( " and " => keys %where );
-    my $st = $self->db->prepare(qq/ select * from $self->{UserTable} where $ever /);
-    my %row;
-
-    $st->execute( values %where );
-    $st->bind_columns(\( @row{ @{$st->{NAME}} } ));
-
-    if ( $st->fetch ) {
-	$self->{Data} = \%row;
-	$self->fetch_groups;
-    } else {
-	undef $self->{Data};
-    }
-
+    my ( $self, $id )    = @_;
+    $self->{Data} = $self->source->fetch_user_by_id( $id );
     return $self;
 }
 
-sub fetch_groups {
-    my $self		    = shift;
-    my $st		    = $self->db->prepare(qq/ 
-	select $self->{GroupField}, $self->{GroupAdminField}
-	    from $self->{GroupTable} where $self->{UserIDField} = ? /);
-
-    my ( $group, $admin ); 
-
-    $st->execute( $self->id );
-    $st->bind_columns(\( $group, $admin ));
-    
-    %{$self->{Former}} = %{$self->{Group}};
-
-    $self->add_group( $group => $admin ) while $st->fetch;
-}
-
-# store() saves an already existing NoCat::User object back to the database, 
-#    presumably after a fetch() and set().
-#
 sub store {
-    my $self		    = shift;
-    my @fields		    = $self->where( "," => keys %{$self->{Data}} );
-    my @place;
-
-    $self->db->do( "update $self->{UserTable} set @fields where $self->{UserIDField} = ?", 
-	{}, values %{$self->{Data}}, $self->id );
-
-    $self->store_groups;
-    return 1;
-}
-
-sub store_groups {
-    my $self = shift;
-    my ( $group, $former, $table ) = @$self{qw{ Group Former GroupTable }};
-    my @fields  = @$self{qw{ UserIDField UserStampField GroupField GroupAdminField }};
-    my @place   = ("?") x @fields;
-    local $" = ", ";
- 
-    while ( my ($member, $admin) = each %$group ) {
-	next if delete $former->{$member};
-	$self->db->do( "insert ignore $table (@fields) values (@place)", {}
-	    => $self->id, undef, $member, $admin );
-    }
-
-    my $ever = $self->where( "and" => @$self{qw{ UserIDField GroupField }} );
-
-    while ( my $member = each %$former ) {
-	$self->db->do( "delete from $table where $ever", {}, $self->id, $member );
-    }
-
-    %$former = %$group;
+    my ( $self, $id )    = @_;
+    $self->source->store_user( $self );
+    return $self;
 }
 
 # authenticate() takes a cleartext password and returns true if the User object's
@@ -196,26 +110,13 @@ sub authenticate {
     return md5_base64( $user_pw ) eq $stored_pw;
 }
 
-# authorize() returns a user's authorization field.
-#
-sub authorize {
-    my $self = shift;
-    return keys %{$self->{Group}};
-}
+sub groups {
+    my ( $self ) = @_;
 
-sub add_group {
-    my ( $self, $group, $admin ) = @_;
-    $self->{Group}{$group} = $admin || 0;
-}
+    $self->{Group} = $self->source->fetch_groups_by_user( $self ) || {}
+	unless $self->{Group};
 
-sub drop_group {
-    my ( $self, $group ) = @_;
-    delete $self->{Group}{$group};
-}
-
-sub DESTROY {
-    my $self = shift;
-    $self->db->disconnect if $self->{Own_DB};
+    return( wantarray ? keys %{$self->{Group}} : $self->{Group} );
 }
 
 1;

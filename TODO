@@ -17,6 +17,8 @@
 
 * "Connect-Forward" gateway mode for firewalled gateways (require HTTPS on g/w)
 
+* Cookie-based persistent logins
+
 * Ping timeout option (instead of or in addition to repeating SSL auth)
 
 * Anonymous (vs. Public) Class Service

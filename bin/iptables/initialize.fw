@@ -6,6 +6,8 @@ echo "1" > /proc/sys/net/ipv4/ip_forward
 
 # Load alllll the kernel modules we need.
 #
+rmmod ipchains > /dev/null 2>&1 # for RH 7.1 users.
+modprobe ip_tables
 modprobe ipt_REDIRECT 
 modprobe ipt_MASQUERADE 
 modprobe ipt_MARK 
@@ -146,11 +148,13 @@ iptables -t nat -A PREROUTING -i $InternalDevice -j ACCEPT
 # part of the iproute2 package, available at:
 # ftp://ftp.inr.ac.ru/ip-routing/
 #
-# To use bandwidth throttling, uncomment the following line,
-# and edit the upload and download bandwidth thresholds at 
-# the top of the bandwidth.linux file.
+# To use bandwidth throttling, edit the upload and download 
+# bandwidth thresholds at the top of the throttle.fw file,
+# and make throttle.fw executable.  Try something like this:
 #
-#bandwidth.linux
+# chmod +x throttle.fw
+#
+[ -x throttle.fw ] && throttle.fw
 
 #
 # Ende

@@ -8,7 +8,7 @@ $ENV{PATH}="/sbin:/usr/sbin:/usr/local/sbin";
 
 sub panic {
   print shift;
-  die "Usage: $0 [permit|deny] [MAC] [IP] [Class]\n\nExample: $0 permit eth0 00:02:2d:aa:bb:cc 10.0.0.105 1\n";
+  die "Usage: $0 [permit|deny] [MAC] [IP] [Class]\n\nExample: $0 permit 00:02:2d:aa:bb:cc 10.0.0.105 1\n";
 }
 
 panic("FATAL: Not enough parameters!\n") unless @ARGV >= 4;

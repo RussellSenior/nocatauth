@@ -1,0 +1,12 @@
+#/bin/sh
+#
+# Flush all chains
+#
+ipchains -F
+#
+# Delete any user defined chains (which we do)
+#
+ipchains -X
+#
+# Fini
+#

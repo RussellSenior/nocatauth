@@ -1,0 +1,38 @@
+#!/usr/bin/perl -w
+
+##
+# VERY simple access control script for leeenux
+##
+use strict;
+use vars qw( *CHAIN );
+
+$ENV{PATH}="/sbin:/usr/sbin:/usr/local/sbin";
+
+sub panic {
+  print shift;
+  die "Usage: $0 [permit|deny] [MAC] [IP] [Class]\n\nExample: $0 permit 00:02:2d:aa:bb:cc 10.0.0.105 1\n";
+}
+
+panic("FATAL: Not enough parameters!\n") unless @ARGV >= 5;
+
+my ( $action, $mac, $ip, $class ) = @ARGV;
+
+$action = { permit => "-I", deny => "-D" } -> {lc $action}
+    or panic("FATAL: Bad action: $action!\n");
+
+$class = { owner => 1, member => 2, public => 3 } -> {lc $class}
+    or panic("FATAL: Bad class: $action!\n");
+
+if ($action eq "-I") {
+  exec("ipchains $action auth -i $ENV{InternalInterface} -s $ip -j RETURN");
+} else {
+  open (CHAIN, "ipchains -nL auth --line-numbers |") || panic("FATAL: reading ipchains rules: $!");
+  while (<CHAIN>) {
+    my ( $index, $target, $proto, $opt, $source, $dest ) = split /\s+/;
+    exec("ipchains $action auth $index") if $source eq $ip or $dest eq $ip;
+  }
+}
+
+#
+# Ende
+#

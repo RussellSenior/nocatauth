@@ -4,9 +4,13 @@ use NoCat qw( LOGOUT );
 use IO::Socket;
 use strict;
 use vars qw( @ISA @REQUIRED );
+use constant COOKIE_ID => "Login";
 
-@REQUIRED   = qw( GatewayPort NotifyTimeout LoginTimeout RenewTimeout HomePage );
 @ISA	    = 'NoCat';
+@REQUIRED   = qw( 
+    Database DB_User DB_Passwd GatewayPort NotifyTimeout
+    LoginTimeout RenewTimeout HomePage 
+);
 
 sub cgi {
     my $self = shift;
@@ -15,13 +19,72 @@ sub cgi {
     return $self->{CGI} ||= CGI->new( @_ );
 }
 
+sub set_cookie {
+    my ( $self, $user ) = @_;
+    my $cgi = $self->cgi;
+    my $id  = $user->id;
+    my $pw  = $user->passwd;
+    
+    return $self->log( 1, "Can't set cookie without username and password" )
+	unless $id and $pw;
+
+    $self->{Cookie} = $cgi->cookie(
+	-name	    => COOKIE_ID,
+	-value	    => "$id:$pw",
+	-path	    => "/",
+	-domain	    => $cgi->virtual_host || $cgi->server_name,
+	-secure	    => 1
+    );
+}
+
+sub get_cookie {
+    my ( $self ) = @_;
+    my $cgi	 = $self->cgi;
+    my $cookie	 = $cgi->cookie( COOKIE_ID ) or return;
+
+    my ( $id, $pw ) = split( ":", $cookie );
+    return unless $id and $pw;
+
+    my $user	 = $self->user->fetch( $id ) or return;
+    return unless $pw eq $user->passwd;
+
+    return $user;
+}
+
+sub gateway_ip {
+    my $self = shift;
+    my $gw   = $self->cgi->remote_host;
+
+    return $gw;
+
+    # If gateway is running on the same subnet as the auth server, the IP
+    # of the client machine will be recieved instead of that of the gateway.
+    # If LocalGateway is defined in nocat.conf, this block will check for
+    # requests from the local subnet and set the gateway to that defined
+    # in nocat.conf if one is found. 
+
+    if ( $self->{LocalGateway} ) {
+        require Net::Netmask;
+        my $local_net = new Net::Netmask( $self->{LocalNetwork} );
+
+	if ($local_net->match( $gw )) {
+	    $self->log( 4, "Request from local ip $gw, " .
+		"directing to local gateway $self->{LocalGateway}." );
+	    return $self->{LocalGateway};
+	}
+    }
+
+    return $gw;
+}
+
 sub notify {
     my ( $self, $action, $data ) = @_;
     my %args = %$data; # 'cause we need to modify it.
 
     # Connect to the gateway.
 
-    my $gateway_ip = $self->cgi->remote_host;
+    my $gateway_ip = $self->gateway_ip;
+
     my $gateway = IO::Socket::INET->new(
 	PeerAddr    => $gateway_ip,
 	PeerPort    => $self->{GatewayPort},
@@ -75,7 +138,8 @@ sub notify {
 
 sub is_login {
     my $self = shift;
-    return scalar( $self->cgi->param("mode") =~ /^(?:login|skip)/io );
+    my $mode = $self->cgi->param( "mode" ) || "";
+    return scalar( $mode =~ /^(?:login|skip)/io );
 }
 
 sub renew_url {
@@ -113,7 +177,8 @@ sub logout_url {
     my $self	= shift;
     my $cgi	= $self->cgi;
     
-    return "http://" . $cgi->remote_host . ":" . $self->{GatewayPort} . LOGOUT;
+    my $gateway_ip = $self->gateway_ip;
+    return "http://" . $gateway_ip . ":" . $self->{GatewayPort} . LOGOUT;
 }
 
 sub display {
@@ -134,12 +199,17 @@ sub display {
 
 sub success {
     my ( $self, $form, $vars ) = @_;
+    
+    $vars ||= $self->cgi->Vars;
+
     my $redirect = ( $vars->{redirect} ||= $self->{HomePage} );
 
     # Add a refresh time of five seconds... unless one is already set.
     $redirect = "5; URL=$redirect" unless $redirect =~ /^\d+;/o;
 
     print $self->cgi->header( -Refresh => $redirect );
+	# ($self->{Cookie} ? (-Cookie => $self->{Cookie}) : ())
+
     print $self->template( $form => $vars );
 }
 

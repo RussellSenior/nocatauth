@@ -7,14 +7,19 @@ use strict;
 
 @ISA	    = 'NoCat';
 @EXPORT_OK  = @NoCat::EXPORT_OK;
-@REQUIRED   = qw( GatewayPort ListenQueue PollInterval LoginTimeout );
+@REQUIRED   = qw( GatewayMode GatewayPort ListenQueue PollInterval LoginTimeout );
 
 sub new {
-    my $class = shift;
-    my $self = $class->SUPER::new( @_ );
+    my $self	= shift;
+    my $class	= ref( $self ) || $self;
 
-    $self->{Request} ||= {};
-    $self->{Peer} ||= {};
+    return $self->instantiate( "GatewayMode", @_ ) if $class eq __PACKAGE__;
+    
+    $self = $class->SUPER::new( @_ );
+
+    $self->{Request}	||= {};
+    $self->{Peer}	||= {};
+
     return $self;
 }
 
