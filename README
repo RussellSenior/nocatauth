@@ -1,4 +1,4 @@
-NoCat Authentication v.0.51
+NoCat Authentication v.0.52
 ===========================
 (c) 2001 Schuyler Erle & Robert Flickenger.
 
@@ -23,6 +23,14 @@ http://nocat.net/download/NoCatAuth/
 
 Release Notes:
 ==============
+
+09/25/2001 (v0.52)
+
+Forgot to export ANY in NoCat.pm.  Fixed.
+
+RJF
+
+-=-=-=-=-
 
 09/24/2001 (v0.51)
 

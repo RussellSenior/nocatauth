@@ -14,7 +14,7 @@ use vars qw( @ISA @EXPORT_OK *FILE );
 use strict;
 
 @ISA	    = "Exporter";
-@EXPORT_OK  = qw( PERMIT DENY PUBLIC MEMBER OWNER LOGOUT );
+@EXPORT_OK  = qw( PERMIT DENY PUBLIC MEMBER OWNER LOGOUT ANY );
 
 my %Defaults = (
     ### Gateway server networking values.
