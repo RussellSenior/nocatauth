@@ -1,4 +1,4 @@
-NoCat Authentication v.0.45
+NoCat Authentication v.0.51
 ===========================
 (c) 2001 Schuyler Erle & Robert Flickenger.
 
@@ -23,6 +23,29 @@ http://nocat.net/download/NoCatAuth/
 
 Release Notes:
 ==============
+
+09/24/2001 (v0.51)
+
+Open Portal mode is now fixed for browsers that return odd http header data. 
+This caused a 'looping' issue where users couldn't escape the splash page in
+some circumstances.
+
+Also, the magical "ANY" group can now provide member class access to any
+member of any group.  Specify ANY in the TrustedGroups directive of the
+nocat.conf (or leave it blank) and members of any group will be accepted
+into the co-op class.
+
+RJF
+
+-=-=-=-=-
+
+09/21/2001 (v0.50)
+
+Moving right along...
+
+RJF
+
+-=-=-=-=-
 
 09/15/2001 (v0.45)
 

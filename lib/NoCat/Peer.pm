@@ -1,8 +1,8 @@
 package NoCat::Peer;
 
-use NoCat qw( PUBLIC );
-use strict;
+use NoCat qw( PUBLIC ANY );
 use vars qw( @ISA @REQUIRED );
+use strict;
 
 @REQUIRED   = qw( LoginTimeout );
 @ISA	    = 'NoCat';
@@ -111,7 +111,13 @@ sub class {
 
 sub groups {
     my ( $self, $groups ) = @_;
-    $self->{Groups} = [ grep($_, split( /\W+/, $groups )) ] if defined $groups;
+    
+    # Every user who is a member of *some* group is automatically a 
+    # member of the magical "Any" group.
+    #
+    $self->{Groups} = [ grep($_, split( /\W+/, $groups )), ANY ]
+	if defined $groups;
+
     return @{$self->{Groups}};
 }
 

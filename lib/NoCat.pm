@@ -6,6 +6,7 @@ use constant PUBLIC => "Public";
 use constant MEMBER => "Member";
 use constant OWNER  => "Owner";
 use constant LOGOUT => "/logout";
+use constant ANY    => "Any";
 
 use FindBin;
 use Exporter;

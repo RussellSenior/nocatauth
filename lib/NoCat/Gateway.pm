@@ -1,15 +1,13 @@
 package NoCat::Gateway;
 
 use IO::Socket;
-use NoCat qw( PERMIT DENY PUBLIC MEMBER OWNER );
+use NoCat qw( PERMIT DENY PUBLIC MEMBER OWNER ANY );
 use vars qw( @ISA @REQUIRED @EXPORT_OK *FILE );
 use strict;
 
 @ISA	    = 'NoCat';
 @EXPORT_OK  = @NoCat::EXPORT_OK;
-@REQUIRED   = qw( 
-    GatewayPort ListenQueue PollInterval LoginTimeout
-);
+@REQUIRED   = qw( GatewayPort ListenQueue PollInterval LoginTimeout );
 
 sub new {
     my $class = shift;
@@ -115,7 +113,7 @@ sub read_http_request {
 	$line =~ s/^\s+|\s+$//gos;
 	last unless length $line;
 	my ( $key, $val ) = split /:\s+/, $line, 2;
-	$head{$key} = $val;
+	$head{ ucfirst lc $key } = $val;
     }
 
     $head{Method}   = $method || "GET";
@@ -237,7 +235,16 @@ sub owners {
 
 sub groups {
     my $self = shift;
-    return grep($_, split( /\W+/, $self->{TrustedGroups} ));
+    
+    # TrustedGroups can be a space- or comma-separated list 
+    # of trusted cooperatives. TrustedGroups can be set the magical "Any"
+    # group, and will default to this if unset.
+
+    if ( my $group = $self->{TrustedGroups} ) {
+	return grep($_, split( /\W+/, $group ));
+    } else {
+	return ANY;
+    }
 }
 
 sub redirect {

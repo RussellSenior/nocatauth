@@ -4,6 +4,13 @@
 
 === To Do (more or less in order of importance):
 
+* Doc note per Terry Schmidt: "(Note:  Causes Security alert
+  message after clicking login, because you are directed from an insecure URL
+  to a Secure URL, to an insecure URL.  Not a problem with NoCat Auth, but
+  should be mentioned in user documentation.)"
+
+* Have auth tokens show up in both gateway and authservice logs, for bug tracking.
+
 * Group managment tools
 
 * Group membership filtering on the gateway
