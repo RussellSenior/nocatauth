@@ -8,73 +8,73 @@
 # Table structure for table 'EventLog'
 #
 
-CREATE TABLE EventLog (
-  ID int(10) unsigned NOT NULL auto_increment,
-  Class tinyint(3) unsigned NOT NULL default '0',
-  Severity tinyint(3) unsigned NOT NULL default '0',
-  Event varchar(255) default NULL,
-  Created datetime default NULL,
-  PRIMARY KEY (ID)
+CREATE TABLE eventlog (
+  id int(10) unsigned NOT NULL auto_increment,
+  class tinyint(3) unsigned NOT NULL default '0',
+  severity tinyint(3) unsigned NOT NULL default '0',
+  event varchar(255) default NULL,
+  created datetime default NULL,
+  PRIMARY KEY (id)
 );
 
 #
 # Table structure for table 'Hardware'
 #
 
-CREATE TABLE Hardware (
-  ID int(10) unsigned NOT NULL auto_increment,
-  MAC varchar(17) default NULL,
-  Owner int(10) unsigned NOT NULL default '0',
-  Description varchar(255) default NULL,
-  Created datetime default NULL,
-  Modified timestamp(14) NOT NULL,
-  PRIMARY KEY (ID)
+CREATE TABLE hardware (
+  id int(10) unsigned NOT NULL auto_increment,
+  mac varchar(17) default NULL,
+  owner int(10) unsigned NOT NULL default '0',
+  description varchar(255) default NULL,
+  created datetime default NULL,
+  modified timestamp(14) NOT NULL,
+  PRIMARY KEY (id)
 );
 
 #
 # Table structure for table 'Member'
 #
 
-CREATE TABLE Member (
-  URL varchar(255) default NULL,
-  Description text,
-  Created datetime default NULL,
-  Modified timestamp(14) NOT NULL,
-  Status tinyint(3) unsigned default NULL,
-  User varchar(250) NOT NULL default '',
-  Pass varchar(255) NOT NULL default '',
-  Name varchar(255) default NULL,
-  PRIMARY KEY (User)
+CREATE TABLE member (
+  url varchar(255) default NULL,
+  description text,
+  created datetime default NULL,
+  modified timestamp(14) NOT NULL,
+  status tinyint(3) unsigned default NULL,
+  login varchar(250) NOT NULL default '',
+  pass varchar(255) NOT NULL default '',
+  name varchar(255) default NULL,
+  PRIMARY KEY (login)
 );
 
 #
 # Table structure for table 'Group'
 #
 
-CREATE TABLE Network  (
-    User varchar(250) not null,
-    Network varchar(250) not null,
-    Admin char(1) default '',
-    Created datetime default NULL,
-    Modified timestamp(14) NOT NULL,
-    PRIMARY KEY (User, Network)
+CREATE TABLE network  (
+    login varchar(250) not null,
+    network varchar(250) not null,
+    admin char(1) default '',
+    created datetime default NULL,
+    modified timestamp(14) NOT NULL,
+    PRIMARY KEY (login, network)
 );
 
 #
 # Table structure for table 'Node'
 #
 
-CREATE TABLE Node (
-  ID int(10) unsigned NOT NULL auto_increment,
-  Owner int(10) unsigned NOT NULL default '0',
-  Address varchar(255) default NULL,
-  Service tinyint(3) unsigned default NULL,
-  Range tinyint(3) unsigned default NULL,
-  Bandwidth tinyint(3) unsigned default NULL,
-  Created datetime default NULL,
-  Modified timestamp(14) NOT NULL,
-  Lat float default NULL,
-  Lon float default NULL,
-  PRIMARY KEY (ID)
+CREATE TABLE node (
+  id int(10) unsigned NOT NULL auto_increment,
+  owner int(10) unsigned NOT NULL default '0',
+  address varchar(255) default NULL,
+  service tinyint(3) unsigned default NULL,
+  range tinyint(3) unsigned default NULL,
+  bandwidth tinyint(3) unsigned default NULL,
+  created datetime default NULL,
+  modified timestamp(14) NOT NULL,
+  lat float default NULL,
+  lon float default NULL,
+  PRIMARY KEY (id)
 );
 

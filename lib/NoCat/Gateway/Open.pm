@@ -80,7 +80,7 @@ sub serve {
     my $file = "$self->{DocumentRoot}/$request->{URI}";
     $file =~ s/\.+/./gos; # Prevent ../ type whatnot.
 
-    my $ext = ( $file =~ /([^\.\/]+)$/gos )[0]; # Try to get the file extension?
+    my ($ext) = ( $file =~ /([^\.\/]+)$/gos ); # Try to get the file extension?
     $ext = $MIME{$ext};
 
     $self->log( 8, "Attempting to serve $file" );
@@ -90,13 +90,23 @@ sub serve {
 	unless $ext;
 
     return $self->not_found( $peer => $request )
-	unless -r $file and -f $file and my $size = -s $file;
+	unless -r $file and -f $file;
+
+    # Load the file from disk.
+    my $data = $self->file( $file );
+    
+    # Parse it automatically if it's HTML. Is this a bad idea? Why?
+    $data = $self->format( $data, $self->splash_vars($peer) ) 
+	if $ext eq "text/html";
+
+    # We already know the size of the data...
+    my $size = length $data;
 
     $peer->socket->print( 
 	"HTTP/1.1 200 OK\r\n",
 	"Content-type: $ext\r\n",
 	"Content-length: $size\r\n\r\n",
-	scalar $self->file( $file )
+	$data
     );
     
     $peer->socket->close;
@@ -127,12 +137,19 @@ sub capture {
 sub splash {
     my ( $self, $peer, $request ) = @_;
     
-    $request->{action}		 = "http://" . $peer->gateway_ip . "/";
-    $request->{redirect}	 = $request->{URL};
-    $request->{ConnectionCount}  = $self->peer_count;
- 
     $self->log( 8, "Displaying splash page to peer", $peer->ip );
-    $self->respond( $peer, SplashForm => $request )
+    $self->respond( $peer, SplashForm => $self->splash_vars($peer, $request) )
+}
+
+sub splash_vars {
+    my ( $self, $peer, $request ) = @_;
+
+    $request		       ||= {};
+    $request->{action}		 = "http://" . $peer->gateway_ip . "/";
+    $request->{redirect}	 = $request->{URL} || $self->{HomePage};
+    $request->{ConnectionCount}  = $self->peer_count;
+
+    return $request; 
 }
 
 sub verify {

@@ -1,9 +1,9 @@
 package NoCat::Message;
 
 use NoCat;
-use IPC::Open2;
+use IPC::Open3;
 use strict;
-use vars qw( @ISA *IN *OUT );
+use vars qw( @ISA *IN *OUT *ERR );
 
 @ISA = 'NoCat';
 
@@ -57,12 +57,16 @@ sub pgp {
 
     local $SIG{CHLD} = "DEFAULT";
 
-    my $pid = open2( \*IN, \*OUT, $cmd ) or die "$cmd: $!";
+    my $pid = open3( \*OUT, \*IN, \*ERR, $cmd ) or die "$cmd: $!";
     print OUT $txt;
     close OUT;  
 
     $txt = do { local $/ = undef; <IN> };
     close IN;
+
+    my $err = do { local $/ = undef; <ERR> };
+    close ERR;
+    $self->log( 1, "$cmd returned error message:\n$err" ) if $err;
 
     if (waitpid($pid, 0) == -1 or $? >> 8 != 0) {
 	$self->log( 1, "$cmd returned error: $! (", $? >> 8, ")" );

@@ -38,7 +38,7 @@ $authserv->log( 7, sprintf( "User %s from %s requests %s",
 );
 
 # Figure out which image button was clicked (since they don't have value="" attributes).
-if (my ($button) = grep $params->{"mode_$_.x"}, qw( login skip logout )) {
+if (my ($button) = grep { defined $params->{"mode_$_.x"} } qw( login skip logout )) {
     delete $params->{$_} for ( "mode_$button.x", "mode_$button.y" );
     $params->{mode} = $button;
 }

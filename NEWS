@@ -1,6 +1,48 @@
 Release Notes:
 ==============
 
+05/17/2003 (v0.82)
+
+No one's complained seriously about the nightly lately, so we're releasing
+it for lack for anything better to do! Not sure how it got to be ten
+months since the last minor version. Oops. Here's some of the stuff
+that's been added since then.
+
+* Added DESTDIR option to Makefile to assist with packaging.
+
+* Added auth source support for NIS and IMAP, and made substantial
+improvements to the RADIUS, LDAP, and PAM support, almost entirely due
+to patches sent by our amazing users. You guys rock. PAM support is
+still a little flaky, apparently. We're still working on it.
+
+* Made logging to disk optional again.
+
+* Gateway now resets log files on SIGHUP if it's logging locally. This
+can be used in conjunction with log rotation schemes.
+
+* Added IgnoreMAC gateway option, if the NoCat gateway isn't connected
+to the internal network at Layer 2.
+
+* Added DNS autoconfiguration via /etc/resolv.conf, using a patch from
+DJ Gregor.
+
+* Altered authserv.conf to support pgsql out of the box and to document
+the enhanced RADIUS support.
+
+* NoCatAuth now features a setuid firewall wrapper so that the gateway
+can be run as a user other than root. Run "make suid-gateway" to build
+NoCat with the suid wrapper. You will need a copy of gcc handy for
+this step. All praise Terry Schmidt for dreaming up the idea in the
+first place.
+
+* Open mode g/w now automatically parses any HTML files it delivers for
+$whatnot type variables. This will permit the NYCWireless folks to have
+the login page be different from the splash page.
+
+* Added -F command-line option to gateway, to prevent daemonization.
+
+-=-=-=-=-=-=-=-
+
 07/07/2002 (v0.81)
 
 		*** IMPORTANT ***

@@ -55,8 +55,10 @@ sub ip {
 
 sub mac {
     my ( $self, $mac ) = @_;
-    $self->{MAC} = $mac if defined $mac;
 
+    return "" if $self->{IgnoreMAC};
+
+    $self->{MAC} = $mac if defined $mac;
     $self->{MAC} = $self->firewall->fetch_mac( $self->{IP} )
 	if $self->{IP} and not defined $self->{MAC};
 
@@ -65,7 +67,8 @@ sub mac {
 
 sub id {
     my $self = shift;
-    return $self->mac || $self->ip;
+    return $self->mac unless $self->{IgnoreMAC};
+    return $self->ip;
 }
 
 sub connect_time {

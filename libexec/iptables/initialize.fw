@@ -18,24 +18,27 @@
 #  3: Public
 #  4: Free
 
-PATH=/sbin:/usr/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/local/bin
-export PATH
-
-# Enable IP forwarding and rp_filter (to kill IP spoof attempts).
+# Note: your PATH is inherited from the gateway process
 #
-echo "1" > /proc/sys/net/ipv4/ip_forward
-echo "1" > /proc/sys/net/ipv4/conf/all/rp_filter
 
-# Load alllll the kernel modules we need.
-#
-rmmod ipchains > /dev/null 2>&1 # for RH 7.1 users.
+if [ $(id -u) = 0 ]; then
+    # Enable IP forwarding and rp_filter (to kill IP spoof attempts).
+    #
+    echo "1" > /proc/sys/net/ipv4/ip_forward
+    echo "1" > /proc/sys/net/ipv4/conf/all/rp_filter
 
-for module in ip_tables ipt_REDIRECT ipt_MASQUERADE ipt_MARK ipt_REJECT  \
-    ipt_TOS ipt_LOG iptable_mangle iptable_filter iptable_nat ip_nat_ftp \
-    ip_conntrack ipt_mac ipt_state ipt_mark; do
+    # Load alllll the kernel modules we need.
+    #
+    rmmod ipchains > /dev/null 2>&1 # for RH 7.1 users.
 
-    modprobe $module
-done
+    for module in ip_tables ipt_REDIRECT ipt_MASQUERADE ipt_MARK ipt_REJECT  \
+	ipt_TOS ipt_LOG iptable_mangle iptable_filter iptable_nat ip_nat_ftp \
+	ip_conntrack ip_conntrack_ftp ip_conntrack_irc \
+	ip_nat_irc ipt_mac ipt_state ipt_mark; do
+
+	modprobe $module
+    done
+fi
 
 # Flush all user-defined chains
 #
@@ -114,12 +117,25 @@ for iface in $InternalDevice; do
 
 	# Accept forward and back traffic to/from DNSAddr
 	if [ "$DNSAddr" ]; then
-	    $fwd -i $iface -s $net -d $DNSAddr -p tcp --dport 53 -j ACCEPT
-	    $fwd -i $iface -s $net -d $DNSAddr -p udp --dport 53 -j ACCEPT
-	    $fwd -o $iface -d $net -s $DNSAddr -j ACCEPT
+            for dns in $DNSAddr; do
+	        $fwd -o $iface -d $net -s $dns -j ACCEPT
 
-	    $nat -p tcp -o $ExternalDevice -s $net -d $DNSAddr --dport 53 -j MASQUERADE
-	    $nat -p udp -o $ExternalDevice -s $net -d $DNSAddr --dport 53 -j MASQUERADE
+		for prot in tcp udp; do
+		    $fwd -i $iface -s $net -d $dns -p $prot --dport 53 -j ACCEPT
+		    $nat -p $prot -s $net -d $dns --dport 53 -j MASQUERADE
+		    
+		    # Force unauthenticated DNS traffic through this server.
+		    # Of course, only the first rule of this type will match.
+		    # But it's easier to leave them all in ATM.
+		    #
+		    # Commented out for now, it's got a syntax issue I can't
+		    # quite fathom: "iptables: Invalid argument"
+		    #   --Rob
+		    #
+		    #$nat -i $InternalDevice -m mark --mark 4 -p $prot \
+		    #	--dport 53 -j DNAT --to $dns:53
+		done
+	    done
 	fi
     done
 
@@ -128,14 +144,21 @@ for iface in $InternalDevice; do
 done
 
 # Redirect outbound non-auth web traffic to the local gateway process
+# except to windowsupdate.microsoft.com, which is broken.
 #
 # If MembersOnly is active, then redirect public class as well
 #
+if [ "$MembersOnly" ]; then
+    nonauth="3 4"
+else
+    nonauth="4"
+fi
 for port in 80 443; do
-    $redirect -m mark --mark 4 -p tcp --dport $port  -j REDIRECT --to-port $GatewayPort
-    if [ "$MembersOnly" ]; then
-    	$redirect -m mark --mark 3 -p tcp --dport $port  -j REDIRECT --to-port $GatewayPort
-    fi
+    for mark in $nonauth; do
+	$redirect -m mark --mark $mark -d windowsupdate.microsoft.com -j DROP
+	$redirect -m mark --mark $mark -p tcp --dport $port  -j REDIRECT \
+	    --to-port $GatewayPort
+    done
 done
 
 # Lock down more ports for public users, if specified. Port restrictions
@@ -217,6 +240,17 @@ $fwd -j DROP
 ##
 # Add any other local firewall rules below.
 ##
+
+##
+# Uncomment the following to permit all 10/8 traffic *before* auth
+##
+
+#AllowedNetworks="10.0.0.0/8"
+#
+#for net in $AllowedNetworks; do
+#  iptables -t mangle -A PREROUTING -d $net -j MARK --set-mark 2
+#  iptables -t filter -A FORWARD -s $net -j ACCEPT
+#done      
 
 #
 # Ende

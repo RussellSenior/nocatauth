@@ -32,8 +32,8 @@ use vars qw( @ISA @REQUIRED );
 
 @ISA	    = qw( NoCat::Source );
 @REQUIRED   = qw(
-    LDAP_Host LDAP_Base LDAP_Admin_User LDAP_Admin_PW UserIDField
-    GroupTable GroupIDField GroupAdminField
+    LDAP_Host LDAP_Base LDAP_Admin_User LDAP_Admin_PW LDAP_Filter
+    UserIDField GroupTable GroupIDField GroupAdminField
 );
 
 
@@ -52,24 +52,26 @@ sub ldap {
 
 
 # dn()	retrieves the LDAP distinguished name of a user, using the
-#	e-mail address provided.  It does this by searching on the
-#	'mail' attribute in the directory.
+#	username provided.  It does this by searching on the
+#	LDAP_Filter attribute in the directory.
 #
 # SCL -	2002-06-05 Updated dn() to lookup the distinguished name of a user
-#                  who has the e-mail attribute equal to the value provided
+#                  who has the LDAP_Filter attribute equal to the value provided
 #                  in the login web page
 #
 sub dn {
     my ($self,$user_id) = @_;
 
+    my $filter = $self->{LDAP_Filter} . "=" . $user_id;
+
     my $mesg = $self->ldap->search(
 	        base   => $self->{LDAP_Base},
-        	filter => "mail=$user_id"
+        	filter => $filter
     );
 
     # Check to see if any entries were returned ...
     if ($mesg->count > 0) {
-    	# If one or more were there, grab the e-mail attribute value of the first
+    	# If one or more were there, grab the LDAP_Filter attribute value of the first
     	my $entry = $mesg->entry(0);
 	my $dn = $entry->dn;
 	return $dn;
@@ -139,7 +141,7 @@ sub create_user {
 			'sn' => $data{"Name"},
 
 			# Set the mail attribute ...
-			'mail' => $user->id,
+			$self->{LDAP_Filter} => $user->id,
 
 			# Put the user's URL into the Location attribute
 			'l' => $data{"URL"},
@@ -250,10 +252,11 @@ sub fetch_user_by_id {
     	my $result = $self->ldap->bind( 'dn' => $self->{LDAP_Admin_User}, 'password' => $self->{LDAP_Admin_PW});
     }
 
+    my $filter = $self->{LDAP_Filter} . "=" . $id;
     # Search for a user with the right e-mail address ...
     my $mesg = $self->ldap->search(
 				   base   => $self->{LDAP_Base},
-				   filter => "mail=$id"
+				   filter => $filter
 				   );
 
     # Unbind the administrative user ... bind Anonymous ...
@@ -265,7 +268,7 @@ sub fetch_user_by_id {
     if ($mesg->count > 0) {
     	# If one or more were there, grab the e-mail attribute value of the first
     	my $entry = $mesg->entry(0);
-	return { $self->{UserIDField} => $entry->get_value('mail') };
+	return { $self->{UserIDField} => $entry->get_value($self->{LDAP_Filter}) };
     } else {
     	# If none were found, return nothing ...
     	return{};

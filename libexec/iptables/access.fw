@@ -4,7 +4,8 @@
 # VERY simple access control script for leeenux
 ##
 
-PATH=/sbin:/usr/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/local/bin
+# Note: your PATH is inherited from the gateway process
+#
 
 action=$1
 mac=$2
@@ -37,8 +38,14 @@ else
     exit 1
 fi
 
+if [ "$IgnoreMAC" ]; then
+    match_mac=""
+else
+    match_mac="-m mac --mac-source $mac"
+fi
+
 # Mark outbound traffic from this node.
-iptables -t mangle $cmd NoCat -m mac --mac-source $mac -s $ip -j MARK --set-mark $mark
+iptables -t mangle $cmd NoCat $match_mac -s $ip -j MARK --set-mark $mark
 
 # Mark inbound traffic to this node.
 iptables -t filter $cmd NoCat_Inbound -d $ip -j ACCEPT

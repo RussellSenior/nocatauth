@@ -43,18 +43,23 @@ sub handle {
 }
 
 sub punch_ticket {
-    my ( $self, $msg, $mac ) = @_;
+    my ( $self, $msg, $id ) = @_;
     my %auth	= $msg->parse;
-    my $client	= $self->{Peer}{$mac} 
-	or return $self->log( 2, "Unknown MAC notify from $mac!" );
+    my $client	= $self->{Peer}{$id} 
+	or return $self->log( 2, "Unknown ID notify from $id!" );
 
     # TODO: better error reporting back to the auth service.
-    return $self->log( 2, "Bad user/MAC match from $mac: $auth{User} != " . $client->user )
+    return $self->log( 2,
+	"Bad user/id match from $id: $auth{User} != " . $client->user )
 	if $client->user and $client->user ne $auth{User};
-    return $self->log( 2, "Bad MAC match from $mac: $auth{Mac} != $mac" )
-	if $mac ne $auth{Mac};
-    return $self->log( 2, "Bad token match from $mac: $auth{Token} != " . $client->token )
+
+    return $self->log( 2, 
+	"Bad token match from $id: $auth{Token} != " . $client->token )
 	if $client->token ne $auth{Token};
+    
+    return $self->log( 2,
+	"Bad MAC match from $id: $auth{Mac} != "  . $client->mac )
+	if not $self->{IgnoreMAC} and $client->mac ne $auth{Mac};
 
     # Identify the user and class.
     $client->user( $auth{User} ); 
@@ -76,21 +81,21 @@ sub punch_ticket {
 }
 
 sub verify {
-    my ( $self, $peer, $mac ) = @_;
+    my ( $self, $peer, $id ) = @_;
     my ( $content, $line );
     my $socket = $peer->socket;
 
-    $self->log( 8, "Received notify $mac from " . $socket->peerhost );
+    $self->log( 8, "Received notify $id from " . $socket->peerhost );
 
     $content .= $line while (defined( $line = <$socket> ));
 
-    if ( my $client = $self->{Peer}{$mac} ) {
+    if ( my $client = $self->{Peer}{$id} ) {
 	my $msg = $self->message( $content );
 	
 	$msg->verify or return $self->log( 2, "Invalid auth message!" ); 
 	$self->log( 9, "Got auth msg " . $msg->extract );
 
-	if ($self->punch_ticket( $msg, $mac )) {
+	if ($self->punch_ticket( $msg, $id )) {
 	    # Tell the auth service we got the message.
 	    $msg = $self->deparse( 
 		User    => $client->user, 
@@ -124,7 +129,7 @@ sub logout {
 sub capture_params {
     my ( $self, $peer, $request ) = @_;
     return { 
-	mac => $peer->mac, 
+	mac => $peer->id, 
 	token => $peer->token,
 	redirect => $request,
 	timeout => $self->{LoginTimeout}
@@ -133,15 +138,15 @@ sub capture_params {
 
 sub capture {
     my ( $self, $peer, $request ) = @_;
-    my ( $mac, $token ) = $peer->mac;
+    my ( $id, $token ) = $peer->id;
 
     return $self->log( 3, "Can't capture peer ", $peer->ip, " without MAC" )
-	unless $mac;
+	unless $id;
 
     $self->log( 7, "Capturing ", $peer->ip, " for $request" );
     
     # Remember the captured peer.	
-    if ( my $original = $self->{Peer}{$mac} ) {
+    if ( my $original = $self->{Peer}{$id} ) {
 	# Actually, we've seen this one before. Reuse the token.
 	$original->socket( $peer->socket );
 	$peer = $original;

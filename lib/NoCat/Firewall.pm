@@ -2,7 +2,7 @@ package NoCat::Firewall;
 
 use NoCat qw( PUBLIC );
 use strict;
-use vars qw( @ISA @REQUIRED *ARP );
+use vars qw( @ISA @REQUIRED *ARP *RESOLV );
 use constant BY_MAC	=> 1;
 use constant BY_IP	=> 2;
 
@@ -18,7 +18,7 @@ my @Dynamic_Required = qw( InternalDevice ExternalDevice LocalNetwork );
 my @Perform_Export = qw( 
     InternalDevice ExternalDevice LocalNetwork AuthServiceAddr DNSAddr
     GatewayAddr GatewayPort IncludePorts ExcludePorts AllowedWebHosts
-    MembersOnly RouteOnly
+    MembersOnly RouteOnly IgnoreMAC
 );
 
 # If /proc/net/arp is available, use it. Otherwise, fork /sbin/arp and read
@@ -45,8 +45,8 @@ sub new {
 	my %iface   = $self->interfaces;
 	my $default = $self->default_route;
 
-	# We're assuming that any interface that doesn't carry your default route
-	# is an internal network.
+	# We're assuming that any interface that doesn't carry your default
+	# route is an internal network.
 
 	my $extern = $self->{ExternalDevice} ||= $default;
 	my @intern = grep( $_ ne $extern, keys %iface );
@@ -60,6 +60,9 @@ sub new {
 
 	$self->log( 7, "Detected $_ '$self->{$_}'" ) for @Dynamic_Required;
     }
+
+    $self->{DNSAddr} = join(" ", $self->nameservers)
+	if not $self->{DNSAddr} or $self->{DNSAddr} eq "resolv.conf";
 
     $self->check_config( @Dynamic_Required );
     return $self;
@@ -77,12 +80,16 @@ sub perform {
     # $ip   ||= ( $mac ? $self->fetch_ip( $mac ) : "" );
     # $mac  ||= ( $ip ? $self->fetch_mac( $ip )  : "" );
 
-    my $cmd = $self->format( $self->{"\u${action}Cmd"}, { Class => $class || PUBLIC, MAC => $mac, IP => $ip } );
+    my $cmd = $self->format( $self->{"\u${action}Cmd"}, {
+	Class => $class || PUBLIC, 
+	MAC   => $mac   || 'none', 
+	IP    => $ip 
+    });
 
-    my %env = %ENV;
-    local %ENV = %env;
-    $ENV{$_} = ( defined( $self->{$_} ) ? $self->{$_} : "" ) for @Perform_Export;
-    system $cmd;
+    local %ENV = %ENV;
+    $ENV{$_}   = ( defined( $self->{$_} ) ? $self->{$_} : "" ) for @Perform_Export;
+    $ENV{PATH} = "$FindBin::Bin:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin";
+    system $cmd;	# XXX need to add error checking and grab std(out,err)!
 }
 
 sub initialize {
@@ -111,6 +118,8 @@ sub arp_table {
     my ( $self, $mode ) = @_;
     my %table;
 
+    local %ENV = %ENV;
+    $ENV{LC_ALL} = $ENV{LANG} = ""; # Disable i18n so we can parse the output.
     open( ARP, $Arp_Cache ) or die "Can't open arp table $Arp_Cache: $!";
 
     while ( <ARP> ) {
@@ -166,6 +175,7 @@ sub interfaces {
     my ( $self ) = @_;
     my ( $iface, $up, $network, $mask, %ifs );
 
+    $ENV{LC_ALL} = $ENV{LANG} = ""; # Disable i18n so we can parse the output.
     for (qx{ $Ifconfig }) {
 	last unless defined $_;
 
@@ -203,6 +213,7 @@ sub interfaces {
 sub default_route {
     my ( $self ) = @_;
     
+    $ENV{LC_ALL} = $ENV{LANG} = ""; # Disable i18n so we can parse the output.
     for (qx{ $Netstat }) {
 	# In both Linux and BSD, the interface is the last thing on the line.
 	last unless defined $_;
@@ -211,6 +222,31 @@ sub default_route {
 
     $self->log( 1, "Can't fetch default route with netstat: $!" );
     return;
+}
+
+sub nameservers {
+    my ( $self ) = @_;
+    my ( @ns ) = ();
+
+    if (-r "/etc/resolv.conf") {
+       open( RESOLV, "/etc/resolv.conf" ) or
+	   die "Can't open /etc/resolv.conf: $!";
+
+       while (<RESOLV>) {
+	   s/#.*//;
+	   next if m/^\s*$/;
+	   if (m/^nameserver\s+(\S+)/) {
+	       push(@ns, $1);
+	   }
+       }
+       close(RESOLV);
+    }
+
+    if (!@ns) {
+       die "No name servers found in /etc/resolv.conf\n";
+    }
+
+    return @ns;
 }
 
 1;

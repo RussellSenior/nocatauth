@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# Note: your PATH is inherited from the gateway process
+#
+
 echo ">>>>> NAT table: <<<<<"
 echo
 /sbin/pfctl -sn

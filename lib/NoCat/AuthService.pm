@@ -180,7 +180,7 @@ sub notify_gateway {
     # Done writing.
     # $gateway->shutdown( 1 );
     shutdown( $gateway, 1 ) # IO::Socket::INET is broken in Perl 5.005?
-	or return $self->log( 4, "Shutdown gateway socket: $!" ); 
+	or $self->log( 4, "Shutdown gateway socket: $!" ); 
 
     # Get the response, then throw away the rest of the HTTP header.
     my ( $http, $code, $response ) = split /\s+/, scalar <$gateway>, 3;

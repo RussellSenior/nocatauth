@@ -10,7 +10,7 @@ use vars qw( @ISA @REQUIRED );
 
 sub authenticate_user {
     my ($self, $user_pw, $user) = @_;
-    my $result = Authen::Smb::authen( $user, $user_pw,
+    my $result = Authen::Smb::authen( $user->id, $user_pw,
 	$self->{Samba_PDC}, $self->{Samba_BDC}, $self->{Samba_Domain} );
 
     if ($result == 0) {

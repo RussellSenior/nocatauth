@@ -33,7 +33,8 @@ sub converse {
 sub authenticate_user {
     my ($self, $user_pw, $user) = @_;
     my $thunk  = $self->converse($user_pw);
-    my $src    = Authen::PAM->new( $self->{PAM_Service} || "nocat", $user, $thunk );
+    my $src    = Authen::PAM->new( $self->{PAM_Service} || "nocat",
+	$user->id, $thunk );
     my $result = $src->pam_authenticate;
 
     if ($result == PAM_SUCCESS) {

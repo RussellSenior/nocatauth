@@ -4,34 +4,32 @@
 
 * ipchains support is b0rked
 
-=== Implemented but in need of testing:
+* Easy MAC white/blacklisting in nocat.conf
 
-* Separate NoCat's iptables rules into a separate table to avoid interfering with other rules
-  >> This will solve "optional firewalling of internal wireless interface"
-     issues: do it yourself in your own table!
+* HTTPS requests crash the gateway hard??
+
+=== Implemented but in need of testing:
 
 * "Connect-Forward" gateway mode for firewalled gateways (require HTTPS on g/w)
   >> Passive mode supercedes this.  Does Passive mode work?
 
+* Find DNS via resolv.conf parsing.
+
+* NoCatSplash
+
 === To Do (more or less in order of importance):
 
-* Document installing authserv/gateway on same machine
+* Add forced DNS to other firewall scripts.
 
 * Easy 'disable public access' option in nocat.conf
 
-* Easy MAC white/blacklisting in nocat.conf
+* Cookie-based persistent logins
 
 * Logout option for Open mode
   >> Link on community site pointing to gw:/logout ?
 
-* NoCatSplash
-
-* PAM support
-
 * Group managment tools. *** bin/admintool is a fully functional commandline
   interface.  Use it!
-
-* Cookie-based persistent logins
 
 * Find DNS via resolv.conf parsing.
 
@@ -40,10 +38,6 @@
 * Figure out perms issues when writing to passwd files from Apache
 
 * Sanity checking of timeout values, etc. Esp. try to prevent g/w from blocking forever.
-
-* Auto-munging of directories in nocat.conf and etc/authserv.conf on install rather than having to do it by hand.
-
-* Time-based throttling example
 
 * CLI auth agent (for Linux users etc)
 

@@ -1,9 +1,0 @@
-#!/bin/sh
-##
-# dump.fw: show the status of all chains.
-##
-
-PATH=/sbin:/usr/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/local/bin
-export PATH
-
-ipchains -n -L

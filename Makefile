@@ -2,6 +2,15 @@
 
 PREFIX	    = /usr/local/nocat
 
+### DESTDIR allows packagers to temporarily install somewhere else.
+
+DESTDIR	    =
+
+### Change WRAP_USER only if you want to use fw-wrap (the setuid wrapper) and
+### want to run as a different user than 'nocat'.
+
+WRAP_USER   = nocat
+
 ### These aren't the droids you're looking for.
 
 INSTALL	    = cp -R
@@ -10,18 +19,19 @@ INST_ETC    = etc
 INST_GW	    = lib pgp
 INST_FORMS  = htdocs
 INST_SERV   = cgi-bin
+TARGET      = $(DESTDIR)$(PREFIX)
 
 all: install
 
 install:
 	@echo
 	@echo "Nothing to build. Edit the Makefile to suit, then run 'make gateway'"
-	@echo "or 'make authserv'."
+	@echo "'make suid-gateway', or 'make authserv'."
 	@echo
 
-$(PREFIX): 
-	[ -d $(PREFIX) ] || mkdir $(PREFIX)
-	chmod 755 $(PREFIX)
+$(TARGET): 
+	[ -d $(TARGET) ] || mkdir -p $(TARGET)
+	chmod 755 $(TARGET)
 
 check_fw:
 	@echo -n "Checking for firewall compatibility: "
@@ -36,22 +46,33 @@ check_gpgv:
 	@which gpgv > /dev/null || ( echo "Can't seem to find gpgv in your path. Is it installed?" && exit 255 )
 
 install_bin:
-	$(INSTALL) $(INST_BIN) $(PREFIX)
+	$(INSTALL) $(INST_BIN) $(TARGET)
 
 install_etc:
-	$(INSTALL) $(INST_ETC) $(PREFIX)
+	[ -d $(TARGET)/$(INST_ETC) ] || mkdir $(TARGET)/$(INST_ETC)
+	$(INSTALL) $(INST_ETC)/passwd   $(TARGET)/$(INST_ETC)
+	$(INSTALL) $(INST_ETC)/group    $(TARGET)/$(INST_ETC)
+	$(INSTALL) $(INST_ETC)/groupadm $(TARGET)/$(INST_ETC)
 
 install_forms:
-	[ -d $(PREFIX)/$(INST_FORMS) ] || $(INSTALL) $(INST_FORMS) $(PREFIX)
+	[ -d $(TARGET)/$(INST_FORMS) ] || $(INSTALL) $(INST_FORMS) $(TARGET)
 
-install_gw: $(PREFIX) install_forms install_bin
-	@echo "Installing NoCat to $(PREFIX)..."
-	$(INSTALL) $(INST_GW) $(PREFIX)
+install_gw: $(TARGET) install_forms install_bin
+	@echo "Installing NoCat to $(TARGET)..."
+	$(INSTALL) $(INST_GW) $(TARGET)
 
-gateway: check_fw check_gpgv install_gw
-	[ -f $(PREFIX)/nocat.conf ] || \
+wrapper: check_fw
+	FW_BIN=`bin/detect-fw.sh | cut -d' ' -f1`; \
+	ln -sf fw-wrap bin/`basename $$FW_BIN`; \
+	gcc -o bin/fw-wrap -Wall -DALLOWED_UID=\"$(WRAP_USER)\" \
+	    -DFW_BINARY=\"$$FW_BIN\" \
+	    etc/fw-wrap.c
+	chmod u+s bin/fw-wrap
+
+base_gateway:
+	[ -f $(TARGET)/nocat.conf ] || \
 	    perl -pe 's#/usr/local/nocat#$(PREFIX)#g' gateway.conf \
-		> $(PREFIX)/nocat.conf
+		> $(TARGET)/nocat.conf
 	@echo
 	@echo "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
 	@echo "                  Congratulations!"
@@ -61,15 +82,22 @@ gateway: check_fw check_gpgv install_gw
 	@echo "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
 	@echo
 
+chown_gateway:
+	chown $(WRAP_USER) $(TARGET)
+	chown $(WRAP_USER) $(TARGET)/pgp
+
+suid-gateway: check_gpgv wrapper install_gw chown_gateway base_gateway
+
+gateway: check_gpgv check_fw install_gw base_gateway
 
 authserv: check_gpg install_gw install_etc
-	$(INSTALL) $(INST_SERV) $(PREFIX)
-	[ -f $(PREFIX)/nocat.conf ] || \
+	$(INSTALL) $(INST_SERV) $(TARGET)
+	[ -f $(TARGET)/nocat.conf ] || \
 	    perl -pe 's#/usr/local/nocat#$(PREFIX)#g' authserv.conf \
-		> $(PREFIX)/nocat.conf
-	[ -f $(PREFIX)/httpd.conf ] || \
+		> $(TARGET)/nocat.conf
+	[ -f $(TARGET)/httpd.conf ] || \
 	    perl -pe 's#/usr/local/nocat#$(PREFIX)#g' etc/authserv.conf \
-		> $(PREFIX)/httpd.conf
+		> $(TARGET)/httpd.conf
 	@echo
 	@echo "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
 	@echo
@@ -88,10 +116,10 @@ authserv: check_gpg install_gw install_etc
 	@echo
 
 pgpkey: check_gpg
-	[ -d $(PREFIX)/pgp ] || mkdir $(PREFIX)/pgp
-	chmod 700 $(PREFIX)/pgp
-	gpg --homedir=$(PREFIX)/pgp --gen-key
-	$(INSTALL) $(PREFIX)/pgp/pubring.gpg $(PREFIX)/trustedkeys.gpg
+	[ -d $(TARGET)/pgp ] || mkdir $(TARGET)/pgp
+	chmod 700 $(TARGET)/pgp
+	gpg --homedir=$(TARGET)/pgp --gen-key
+	$(INSTALL) $(TARGET)/pgp/pubring.gpg $(TARGET)/trustedkeys.gpg
 	@echo
 	@echo "Be sure to make your $(PREFIX)/pgp directory readable *only* by the user"
 	@echo "    your httpd runs as."

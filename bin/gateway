@@ -9,7 +9,9 @@ use NoCat;
 use strict;
 
 # Gracefully handle termination signals.
-$SIG{HUP} = $SIG{INT} = sub { exit };
+$SIG{INT} = sub { exit };
+
+# Note that gateway now closes and re-opens its logfile on SIGHUP.
 
 # Set some default path values.
 $ENV{PATH} = "$ENV{PATH}:/sbin:/usr/sbin:/usr/local/sbin";
@@ -18,10 +20,19 @@ $ENV{PATH} = "$ENV{PATH}:/sbin:/usr/sbin:/usr/local/sbin";
 chdir( "$FindBin::Bin/.." );
 
 # Get the command-line arguments:
-#   -R	=> Reset gateway and exit.
-#   -f	=> Use the specified file instead of nocat.conf.
-#
-my %opt; getopts( "RDf:" => \%opt );
+my %opt; getopts( "?RDFf:" => \%opt );
+
+if ( $opt{"?"} ) {
+    die <<End;
+NoCat gateway command-line arguments:
+    -D		Debug mode. Gateway forks a child that actually
+		performs the gateway functions.
+    -F		Foreground mode. Don't fork into the background.
+    -R		Reset firewall and exit.
+    -f <file>	Use the specified file instead of nocat.conf.
+    -?		This, obviously.
+End
+}
 
 # Load the gateway object.
 my $config = $opt{f} || $ENV{NOCAT}; 
@@ -35,23 +46,22 @@ exit if $opt{R}; # We're done now, if -R.
 # See if we can bind the listener port.
 exit 1 unless $server->bind_socket;
 
-# Set up the requisite logs (syslog is handled internal to NoCat.pm).
-if ( $server->{LogFacility} ne "syslog" and my $log = $server->{GatewayLog} ) {
-    open STDERR, ">>$log" or die "Can't open log file $log: $!";
-    open STDOUT, ">&STDERR" or die "Can't dup STDOUT to STDERR: $!";
-}
+# Set up the requisite logs.
+$server->open_log;
 
 $server->log( 1, "Gateway running on port $server->{GatewayPort}." );
 
-# Daemonize.
-if ( my $pid = fork ) {
-    exit;
-} elsif ( not defined $pid ) {
-    die "Can't fork: $!";
+# Daemonize, unless we're told not to.
+unless ( $opt{F} ) {
+    if ( my $pid = fork ) {
+	exit;
+    } elsif ( not defined $pid ) {
+	die "Can't fork: $!";
+    }
+    setsid;
 }
-setsid;
 
-# Fork a child process and watch it.
+# Fork a child process and watch it, if we're in debug mode.
 if ( $opt{D} ) {
     if ( my $pid = fork ) {
 	1 until waitpid( $pid, 0 );
@@ -63,6 +73,7 @@ if ( $opt{D} ) {
 	$server->run;
     }
 } else {
+# otherwise, just run the gateway.
     $server->run;
 }
 

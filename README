@@ -1,6 +1,6 @@
-NoCat Authentication v0.81
+NoCat Authentication v0.82
 ===========================
-(c) 2001, 2002 Schuyler Erle & Robert Flickenger.
+(c) 2001 - 2003 Schuyler Erle & Robert Flickenger.
 
 ============
 Installation
@@ -82,7 +82,6 @@ Other Cool Cats (for their support, testing, code,
 
 This code also includes contributions from (in no particular order):
 
-* Scott Lemon (LDAP support)
 * Michael Bailey (LocalGateway patch, dynamic FORWARD filter, and some
   filesystem restructuring)
 * Matt Westervelt (ipchains code + testing)
@@ -92,10 +91,16 @@ This code also includes contributions from (in no particular order):
 * Michael Codanti (ARP expiration and a bunch of other stuff)
 * Don Park (gateway status page)
 * Richard Lotz (OpenBSD packetfilter support)
-* DJ Gregor (OpenBSD packetfilter support)
+* DJ Gregor (OpenBSD packetfilter support and lots of other cool stuff)
+* Scott Lemon (LDAP support)
 * Nathan Zorn (LDAP support)
+* Scott C. Lemon (Major improvements to LDAP support)
 * Jan-Patrick Perisse (RADIUS support)
+* Chip Ach (Significant RADIUS improvements)
 * Matt William Barclay (Syslog support, status support in Captive/Passive mode)
+* Ilguiz Latypov (various improvements)
+* Matt McParland (IMAP support)
+* Olivier Page (NIS support)
 
 ...and, of course, a slew of other people who provide ideas, rants, flames,
 public demos, and even the occasional patch.

@@ -66,6 +66,17 @@ sub bind_socket {
     return( $self->{ListenSocket} = $server );
 }
 
+sub open_log {
+    my $self = shift;
+    my $log  = $self->{GatewayLog};
+
+    # Do nothing if we're using syslog (it's handled in NoCat.pm)
+    return unless $log and $self->{LogFacility} ne "syslog";
+
+    open STDERR, ">>$log" or die "Can't open log file $log: $!";
+    open STDOUT, ">&STDERR" or die "Can't dup STDOUT to STDERR: $!";
+}
+
 sub pool {
     my $self = shift;
     $self->{SocketPool} ||= IO::Select->new( $self->bind_socket );
@@ -79,11 +90,14 @@ sub clear_pool {
 
 sub run {
     my $self	= shift;
-
+    my $kids	= 0;
+    my $hup = 0;
+    
     return unless $self->bind_socket;
 
     local $SIG{PIPE} = "IGNORE"; 
-    local $SIG{CHLD} = \&reaper;
+    local $SIG{CHLD} = sub { $kids++ };
+    local $SIG{HUP} = sub { $hup++ };
 
     # Reset history.
     $self->{GatewayStartTime}	= scalar localtime;
@@ -113,6 +127,19 @@ sub run {
             $self->check_inactive;
             $inactive += $self->{IdleTimeout}; 
         }
+
+        # Have we caught a HUP?  If so, re-initialize log files.
+        if ( $hup ) {
+            $self->open_log;
+            $self->log( 6, "HUP received, resetting log file." );
+            $hup = 0;
+        }
+
+	# See if any kids have expired, reap zombies
+	if ( $kids ) {
+	    1 until ( wait == -1 );
+	    $kids = 0;
+	}
 
     } # loop forever
 }
@@ -284,6 +311,9 @@ sub check_expired {
 sub check_inactive { 
     my $self = shift;
 
+    # Bag if we're not paying attention to MAC addresses.
+    return if $self->{IgnoreMAC};
+
     # Only fetch the table once to save some ticks
     my $arp = $self->firewall->arp_table( $self->firewall->BY_MAC );
 
@@ -392,10 +422,11 @@ sub permit {
 
 sub deny {
     my ( $self, $peer ) = @_;
-    my $mac	= $peer->mac or return; 
+    my $mac	= $peer->mac;
 
     # if we don't know the peer's MAC address, it must have been
     # an incidental connection (e.g. notification) that can be ignored.
+    return unless $mac or $self->{IgnoreMAC};
 
     $peer = $self->remove_peer( $peer )
 	or return $self->log( 4, "Denying unknown MAC address $mac?" );
@@ -558,9 +589,4 @@ sub no_response {
     $peer->socket->close;
 }
 
-sub reaper {
-    1 until ( wait == -1 );
-    $SIG{CHLD} = \&reaper; # on the off-chance we're running a real SysV system;
-}
-
-1
+1;

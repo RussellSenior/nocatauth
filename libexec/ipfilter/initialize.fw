@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# Note: your PATH is inherited from the gateway process
+#
+
 # Enable IP forwarding.
 #
 sysctl net.inet.ip.forwarding=1
@@ -85,7 +88,9 @@ echo "rdr $InternalDevice 0.0.0.0/0 port 443 -> $GatewayAddr port $GatewayPort t
 if [ -z $DNSAddr ]; then
   echo "pass in on $InternalDevice proto tcp/udp from any to $LocalNetwork port = 53 keep state" | ipf -A -f -
 else 
-  echo "pass out on $ExternalDevice proto tcp/udp from any to $DNSAddr port = 53 keep state" | ipf -A -f -
+  for a in $DNSAddr; do
+    echo "pass out on $ExternalDevice proto tcp/udp from any to $a port = 53 keep state" | ipf -A -f -
+  done
 fi
 
 #

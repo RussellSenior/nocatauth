@@ -18,8 +18,8 @@
 #  3: Public
 #  4: Free
 
-PATH=/sbin:/usr/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/local/bin
-export PATH
+# Note: your PATH is inherited from the gateway process
+#
 
 # Enable IP forwarding and rp_filter (to kill IP spoof attempts).
 #
@@ -75,10 +75,12 @@ for net in $LocalNetwork; do
 
     # Accept forward and back traffic to/from DNSAddr
     if [ "$DNSAddr" ]; then
-	$fwd -p tcp -s $net -d $DNSAddr 53 -j $masq 
-	$fwd -p tcp -d $net -s $DNSAddr 53 -j ACCEPT
-	$fwd -p udp -s $net -d $DNSAddr 53 -j $masq 
-	$fwd -p udp -d $net -s $DNSAddr 53 -j ACCEPT
+	for a in $DNSAddr; do
+  	    $fwd -p tcp -s $net -d $a 53 -j $masq 
+	    $fwd -p tcp -d $net -s $a 53 -j ACCEPT
+	    $fwd -p udp -s $net -d $a 53 -j $masq 
+	    $fwd -p udp -d $net -s $a 53 -j ACCEPT
+	done
     fi
 
     # Redirect outbound non-auth web traffic to the local gateway process

@@ -3,8 +3,8 @@
 # reset.fw: you guessed it.
 ##
 
-PATH=/sbin:/usr/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/local/bin
-export PATH
+# Note: your PATH is inherited from the gateway process
+#
 
 iptables -F
 iptables -t nat -F

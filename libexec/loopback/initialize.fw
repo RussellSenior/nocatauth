@@ -1,9 +1,10 @@
 #!/bin/sh
 
+# Note: your PATH is inherited from the gateway process
+#
+
 GatewayAddr=127.0.0.1
 GatewayPort=5280
-
-export PATH=/sbin:/usr/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/local/bin
 
 # Enable IP forwarding.
 #

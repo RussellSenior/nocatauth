@@ -1,6 +1,6 @@
 package NoCat;
 
-use constant VERSION	=> "0.80.20020613";
+use constant VERSION	=> "0.81.20020808";
 use constant PERMIT	=> "Permit";
 use constant DENY	=> "Deny";
 use constant PUBLIC	=> "Public";
@@ -203,28 +203,30 @@ sub log {
 }
 
 sub syslog_log {
-     require Sys::Syslog;
+    require Sys::Syslog;
 
-     my ( $self, @msg ) = @_;
+    import Sys::Syslog qw(:DEFAULT setlogsock);
 
-     setlogsock($self->{SyslogSocket});
-     openlog($self->{SyslogIdent}, $self->{SyslogOptions}, $self->{SyslogFacility});
-     syslog($self->{SyslogPriority}, "%s", "@msg");
-     closelog();
+    my ( $self, @msg ) = @_;
+
+    setlogsock($self->{SyslogSocket});
+    openlog($self->{SyslogIdent}, $self->{SyslogOptions}, $self->{SyslogFacility});
+    syslog($self->{SyslogPriority}, "%s", "@msg");
+    closelog();
 }
 
- sub internal_log {
-     my ( $self, @msg ) = @_;
+sub internal_log {
+    my ( $self, @msg ) = @_;
 
-     # Get relevant time/date data.
-     my ( $s, $m, $h, $d, $mo, $yr ) = (localtime())[0..5];
-     $yr += 1900; $mo++; chomp @msg;
+    # Get relevant time/date data.
+    my ( $s, $m, $h, $d, $mo, $yr ) = (localtime())[0..5];
+    $yr += 1900; $mo++; chomp @msg;
 
-     # Log message takes form: [YYYY-MM-DD HH-MM-SS] *Your message here*
-     print STDERR (sprintf( "[%04d-%02d-%02d %02d:%02d:%02d] %s\n",
-                            $yr, $mo, $d, $h, $m, $s, "@msg" ));
-     return;
- }
+    # Log message takes form: [YYYY-MM-DD HH-MM-SS] *Your message here*
+    print STDERR (sprintf( "[%04d-%02d-%02d %02d:%02d:%02d] %s\n",
+                           $yr, $mo, $d, $h, $m, $s, "@msg" ));
+    return;
+}
 
 sub url_encode {
     my ( $self, @args ) = @_;

@@ -4,7 +4,8 @@
 # VERY simple access control script for leeenux
 ##
 
-PATH=/sbin:/usr/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/local/bin
+# Note: your PATH is inherited from the gateway process
+#
 
 action=$1
 mac=$2

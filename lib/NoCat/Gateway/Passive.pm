@@ -31,7 +31,7 @@ sub verify {
 
     $self->log( 9, "Got auth msg:\n" . $msg->extract );
 
-    my $auth = $self->punch_ticket( $msg, $peer->mac ) or return;
+    my $auth = $self->punch_ticket( $msg, $peer->id ) or return;
 
     if ( $auth->{Mode} =~ /^renew/io ) {
 	$self->no_response( $peer );
@@ -44,7 +44,7 @@ sub verify {
 sub capture_params {
     my ( $self, $peer, $request ) = @_;
     return {
-	mac      => $peer->mac,
+	mac      => $peer->id,
 	token    => $peer->token, 
 	redirect => $request, 
 	timeout	 => $self->{LoginTimeout},
