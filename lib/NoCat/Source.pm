@@ -10,6 +10,7 @@ use vars qw( @ISA @REQUIRED );
 my @API_Methods = qw(
     create_user
     store_user
+    authenticate_user		     
 
     fetch_user_by_id
     fetch_users_by_group

@@ -17,7 +17,8 @@ my @Dynamic_Required = qw( InternalDevice ExternalDevice LocalNetwork );
 #
 my @Perform_Export = qw( 
     InternalDevice ExternalDevice LocalNetwork AuthServiceAddr DNSAddr
-    GatewayPort IncludePorts ExcludePorts AllowedWebHosts
+    GatewayAddr GatewayPort IncludePorts ExcludePorts AllowedWebHosts
+    MembersOnly RouteOnly
 );
 
 # If /proc/net/arp is available, use it. Otherwise, fork /sbin/arp and read
@@ -36,7 +37,7 @@ my $MAC_Match = '((?:[\da-f]{1,2}:){5}[\da-f]{1,2})';   # match xx:xx:xx:xx:xx:x
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new( @_ );
-    
+
     $self->check_config( "AuthServiceAddr" ) 
 	unless $self->{GatewayMode} and $self->{GatewayMode} eq "Open";
 

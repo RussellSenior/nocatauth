@@ -6,6 +6,8 @@ use Getopt::Std;
 use NoCat;
 use strict;
 
+$ENV{PATH} = "$ENV{PATH}:/sbin:/usr/sbin:/usr/local/sbin";
+
 my %opt; getopts( "Rf:" => \%opt );
 
 my $config = $opt{f} || $ENV{NOCAT}; 

@@ -25,8 +25,10 @@ my %Defaults = (
     GatewayPort	    => 5280, 
     PollInterval    => 10,
     ListenQueue	    => 10,
+    HandleTimeout   => 3,
     IdleTimeout     => 300,
     MaxMissedARP    => 2,
+    ForkOff	    => 1,
 
     ### No. of seconds before logins/renewals expire.
     LoginTimeout    => 300,
@@ -86,8 +88,12 @@ sub file {
     $filename = $self->{$filename}
 	if $self->{$filename};
 
+    # Append the DocumentRoot if set and if the 
+    # filename isn't absolute or it doesn't exist.
+    #
     $filename = "$self->{DocumentRoot}/$filename"
-	if $self->{DocumentRoot} and not -r $filename;    
+	if $self->{DocumentRoot}
+	and ( $filename !~ /^\//o or not -r $filename );
 
     open( FILE, "<$filename" )
 	or return $self->log( 1, "file $filename: $!" );
@@ -113,7 +119,8 @@ sub parse {
 	    next unless $line =~ /^\w/o;
 
 	    # Split key / value pairs.
-	    push @pairs, split /\s+/, $line, 2;
+	    my ($key, $val) = split( /\s+/, $line, 2 );
+	    push @pairs, $key, $val;
 	}
     }
 
@@ -219,6 +226,12 @@ sub format {
     return $string;
 }
 
+sub template {
+    my ( $self, $filename, $extra ) = @_;
+    my $file = $self->file( $filename );
+    return $self->format( $file, $extra ); 
+}
+
 sub md5_hash {
     my ( $self, $string, $salt ) = @_;
 
@@ -233,10 +246,10 @@ sub md5_hash {
     return crypt( $string, $salt );
 }
 
-sub template {
-    my ( $self, $filename, $extra ) = @_;
-    my $file = $self->file( $filename );
-    return $self->format( $file, $extra ); 
+sub increment_token {
+    my ( $self, $token ) = @_;
+    my $salt = ++substr( $token, -8 );
+    return $self->md5_hash( $token, $salt );
 }
 
 sub instantiate {
@@ -270,10 +283,23 @@ sub gateway {
     return NoCat::Gateway->new( Parent => $self, @_ );
 }
 
+my $Firewall; # Singleton instance.
+
 sub firewall {
     my $self = shift;
-    require NoCat::Firewall;
-    return NoCat::Firewall->new( Parent => $self, @_ );
+
+    # If we already have an initialized NoCat::Firewall object,
+    # use it, rather than creating a new one and having to go
+    # through the autodetect process all over again.
+
+    if ( $Firewall ) {
+	my %args = @_;
+	%$Firewall = (%$Firewall, @_);
+    } else {
+	require NoCat::Firewall;
+	$Firewall = NoCat::Firewall->new( Parent => $self, @_ );
+    }
+    return $Firewall;
 }
 
 sub auth_service {

@@ -143,10 +143,9 @@ sub notify_via_client {
     # we have to add the http:// part.
 
     $data->{redirect} = $self->url(
-	"http://$data->{gateway}" => { ticket => $tix } );
-	
-    my $salt = ++substr( $data->{token}, -8 );
-    $data->{token} = $self->md5_hash( $data->{token}, $salt );
+	"http://$data->{gateway}/" => { ticket => $tix } );
+
+    $data->{token} = $self->increment_token( $data->{token} );
 
     return $data;
 }

@@ -22,9 +22,16 @@ sub socket {
     my ( $self, $sock ) = @_;
     if ( defined $sock ) {
 	$self->{Socket} = $sock;
+	$self->gateway_ip( $sock->sockhost );
 	$self->ip; # seed IP address.
     }
     return $self->{Socket};
+}
+
+sub gateway_ip {
+    my ( $self, $addr ) = @_;
+    $self->{GatewayAddr} = $addr if defined $addr;
+    return $self->{GatewayAddr};
 }
 
 sub ip {
@@ -50,6 +57,11 @@ sub mac {
 	if $self->{IP} and not defined $self->{MAC};
 
     return $self->{MAC};
+}
+
+sub id {
+    my $self = shift;
+    return $self->mac || $self->ip;
 }
 
 sub connect_time {
@@ -91,12 +103,14 @@ sub heartbeat {
 
 sub token {
     my ( $self, $reset ) = @_;
+    my $token = $self->{Token};
     my $salt;
 
-    if ( defined $reset or not defined $self->{Token} ) {
-	$salt = ++substr( $self->{Token}, -8 ) if $self->{Token};
-	$self->{Token} = $self->md5_hash( $self->{Token}, $salt );
+    if ( defined $reset or not defined $token ) {
+	$token = int rand 0xFFFFFFFF unless $token;
+	$self->{Token} = $self->increment_token( $token );
     }
+
     return $self->{Token};
 }
 

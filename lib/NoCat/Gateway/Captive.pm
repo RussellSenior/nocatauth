@@ -15,7 +15,7 @@ sub handle {
     my ( $self, $peer )	= @_;
     my $request		= $self->read_http_request( $peer ) or return;
 
-    my $me = $peer->socket->sockhost;
+    my $me = $peer->gateway_ip;
     $me .= ":" . $peer->socket->sockport if $request->{Host} =~ /:/o;
 
     # If this request is intended for us...
@@ -57,6 +57,9 @@ sub punch_ticket {
     $client->user( $auth{User} ); 
     $client->groups( $auth{Member} );
 
+    # Store the new token away for when the peer renews its login.
+    $client->token(1);
+
     # Perform the requested action.
     if ( $auth{Action} eq PERMIT ) {
 	$self->permit( $client );
@@ -64,8 +67,6 @@ sub punch_ticket {
 	$self->deny( $client );
     }
 
-    # Store the new token away for when the peer renews its login.
-    $client->token(1);
     $self->log( 9, "Available MACs: @{[ keys %{$self->{Peer}} ]}" );
 
     return \%auth;
@@ -96,6 +97,7 @@ sub verify {
 	    $self->log( 9, "Responding with:\n$msg" );
 	    print $socket "HTTP/1.1 200 OK\n\n$msg";
 	}
+	
     } else {
 	$self->log( 2, "Non-existent auth request!" );
 	$self->log( 9, "Available MACs: @{[ keys %{$self->{Peer}} ]}" );
@@ -141,13 +143,16 @@ sub capture {
 	$original->socket( $peer->socket );
 	$peer = $original;
     } else {
-	$self->{Peer}{$mac} = $peer;
+	$self->add_peer( $peer );
     }
 
     # Smile for the GET URL.
     my $args = $self->capture_params( $peer, $request );
     my $url = $self->url( AuthServiceURL => $args );
     $self->redirect( $peer, $url );
+
+    # Tell our parent we got the message.
+    $self->notify_parent( Capture => $peer );
 }
 
 1;

@@ -1,0 +1,140 @@
+NatConf=nat.conf
+PFConf=pf.conf
+
+# clear all packet filter rules
+pfctl -F all
+
+#
+# All rules need to be put to our nat.conf file
+#
+
+if [ "$NatConf" = "" ]; then
+	echo "ERROR: NatConf was not specified!\n"
+	exit 1; 
+fi
+
+if [ "$PFConf" == "" ]; then
+	echo "ERROR: PFConf was not specified!\n";
+	exit 1;
+fi
+
+
+##
+# Set up nat and rdr in nat.conf
+##
+
+# zero out nat.conf
+echo "# Base NoCat nat.conf file" > $NatConf
+
+# Setup basic nat rule, any traffic out ExternalDevice with the IP from $LocalNetwork gets rewritten
+# to the ip of the $ExternalDevice
+echo "nat on fxp0 from $LocalNetwork to any -> $ExternalDevice" >> $NatConf
+
+# redir all web traffic to the gateway
+echo "rdr on $InternalDevice proto tcp from any to any port 80 -> $ExternalDevice port $GatewayPort" >> $NatConf
+#echo "rdr on $InternalDevice proto tcp from any to any port 80 -> $GatewayAddr $GatewayPort" >> $NatConf
+#echo "rdr on $InternalDevice proto tcp from any to any port 443 -> $GatewayAddr port $GatewayPort" >> $NatConf
+
+# Setup rdr for ftp-proxy(8) incase we decide it's needed.
+#echo "rdr on $InternalDevice from any to any port 21 -> $ExternalDevice port 8081" >> $NatConf
+
+####################################
+# Setup firewall rules in pf.conf ##
+####################################
+echo "# Base NoCat pf.conf file" > $PFConf
+
+# setup our default deny
+#echo "block out on $InternalDevice from any to any" >> $PFConf
+echo "block in log on $InternalDevice from any to any" >> $PFConf
+
+#
+# Lock down more ports for public users, if specified.
+#
+# There are two philosophies in restricting access:  That Which Is Not
+# Specifically Permitted Is Denied, and That Which Is Not Specifically
+# Denied Is Permitted.
+#
+# If "IncludePorts" is defined, the default policy will be to deny all
+# traffic, and only allow the ports mentioned.
+#
+# If "ExcludePorts" is defined, the default policy will be to allow all
+# traffic, except to the ports mentioned.
+#
+# If both are defined, ExcludePorts will be ignored, and the default policy
+# will be to deny all traffic, allowing everything in IncludePorts, and
+# issue a warning.
+#
+if [ "$IncludePorts" ]; then
+
+	if [ "$ExcludePorts" ]; then
+		echo "Warning: ExcludePorts and IncludePorts are both defined."
+		echo "Ignoring 'ExcludePorts'.  Please check your nocat.conf."
+	fi
+
+	#
+	# Enable all ports in IncludePorts
+	#
+	for port in $IncludePorts; do
+		echo "pass in on $InternalDevice proto tcp from any to any port = $port keep state" >> $PFConf
+	done
+	
+	# Block all other ports
+  	echo "block in on $InternalDevice proto tcp all" >> $PFConf
+
+elif [ "$ExcludePorts" ]; then
+	#
+	# If ExcludePorts has entries, simply deny access to them.
+	#
+	#echo "Denying public access to these ports: $ExcludePorts"
+
+	for port in $ExcludePorts; do
+		echo "block in on $InternalDevice proto tcp from any to any port = $port" >> $PFConf
+  	done
+fi
+
+
+#setup the DNS and other goodies AFTER the include/exclude ports just-in-case someone does something dumb like excluding the dns port
+
+# Is $DNSAddr of non zero length (was it defined in nocat.conf)?
+if [ -n $DNSAddr ]; then
+    # Use local DNS server on gateway
+	echo "pass in quick on $InternalDevice proto {tcp, udp} from any to $LocalNetwork port = 53 keep state" >> $PFConf
+	#echo "pass in on $InternalDevice proto tcp from any to $LocalNetwork port = 53 keep state" >> $PFConf
+	#echo "pass in on $InternalDevice proto udp from any to $LocalNetwork port = 53 keep state" >> $PFConf
+else
+	# Use external DNS server
+	echo "pass in quick on $InternalDevice proto {tcp, udp} from any to $DNSAddr port = 53 keep state" >> $PFConf
+	#echo "pass in on $InternalDevice proto tcp from any to $DNSAddr port = 53 keep state"  >> $PFConf
+	#echo "pass in on $InternalDevice proto udp from any to $DNSAddr port = 53 keep state"  >> $PFConf
+	echo "pass out quick on $InternalDevice proto {tcp, udp} from any to $DNSAddr port = 53 keep state" >> $PFConf
+	#echo "pass out on $InternalDevice proto tcp from any to $DNSAddr port = 53 keep state" >> $PFConf
+	#echo "pass out on $InternalDevice proto udp from any to $DNSAddr port = 53 keep state" >> $PFConf
+fi
+
+# Allow port 80/443 to go, so they can be redirected in nat to the login page
+#
+echo "pass in quick on $InternalDevice proto tcp from any to $ExternalDevice port { 80, 443 } keep state" >> $PFConf
+#echo "pass in on $InternalDevice proto tcp from any to $ExternalDevice port = 443 keep state" >> $PFConf
+
+# Always permit access to the GatewayPort (or we can't logout)
+#
+echo "pass in quick on $InternalDevice proto tcp from any to any port = $GatewayPort keep state" >> $PFConf
+echo "pass out quick on $InternalDevice proto tcp from any to any port = $GatewayPort keep state" >> $PFConf
+
+echo "pass in quick on $InternalDevice proto tcp from any to $AuthServiceAddr port = https keep state" >> $PFConf
+
+# Allow external interface to talk to the outside.  This is for outbound requests
+#echo "pass in on $ExternalDevice all" >> $PFConf
+#echo "pass out on $ExternalDevice all" >> $PFConf
+# keep ssh open while debuging
+#echo "pass in quick on $InternalDevice proto tcp from any to any port = 22" >> $PFConf
+#echo "pass out quick on $InternalDevice proto tcp from any to any port = 22" >> $PFConf
+
+echo "pass out quick on $InternalDevice from any to any" >> $PFConf
+# allow them to ping us. Some PDA's 802.11b cards/tcpstack send icmp to test the link
+echo "pass in quick on $InternalDevice proto icmp from any to $InternalDevice" >> $PFConf
+echo "pass in quick on $InternalDevice proto icmp from any to $ExternalDevice" >> $PFConf
+
+# load the new rules
+pfctl -N $NatConf
+pfctl -R $PFConf

@@ -1,0 +1,20 @@
+#!/bin/sh
+##
+# dump.fw: show the status of all iptables.
+##
+
+PATH=/sbin:/usr/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/local/bin
+export PATH
+
+echo ">>>>> Filter table: <<<<<"
+iptables -t filter -L NoCat -n
+echo
+echo ">>>>> NAT table: <<<<<"
+iptables -t nat -L NoCat -n
+echo
+echo ">>>>> Mangle table: <<<<<"
+iptables -t mangle -L NoCat -n
+
+#
+# Ende
+#

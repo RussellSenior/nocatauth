@@ -2,6 +2,7 @@ package NoCat::Source::DBI;
 
 use NoCat::Source;
 use DBI;
+use Digest::MD5 qw( md5_base64 );
 use strict;
 use vars qw( @ISA @REQUIRED );
 
@@ -37,6 +38,7 @@ sub create_user {
     my %data = %{ $user->data };
 
     $data{$self->{UserStampField}} = undef if $self->{UserStampField};
+    $self->check_password($user);    
 
     my @fields	= keys %data;
     my @place	= ("?") x @fields;
@@ -48,12 +50,27 @@ sub create_user {
 
 sub store_user {
     my ( $self, $user )	= @_;
-    my $data	= $user->data;
-    my $fields	= $self->where( "," => keys %$data );
- 
+    my %data	= %{ $user->data };
+    my $fields	= $self->where( "," => keys %data );
+
+    $self->check_password($user);    
+
     local $" = ", ";
     $self->db->do( "update $self->{UserTable} set $fields where $self->{UserIDField} = ?",
-	{}, values %$data, $user->id );
+	{}, values %data, $user->id );
+}
+
+sub check_password {
+    my ($self, $user) = @_;
+    # MD5 the password if it's not already MD5'd, prior to actually using it.
+    $user->set_password( md5_base64( $user->passwd ), 1 ) if $user->changed_password;
+    return $user->passwd;
+}
+
+sub authenticate_user {
+    my ($self, $user_pw, $user) = @_;
+    my $stored_pw = $self->check_password( $user );
+    return md5_base64( $user_pw ) eq $stored_pw;
 }
 
 sub fetch_user_by_id {
@@ -79,11 +96,7 @@ sub fetch_members {
     
     $member{$id} = $admin while $st->fetch;
     
-    if ( %member ) {
-	return \%member;
-    } else {
-	return;
-    }
+    return \%member;
 }
 
 sub fetch_groups_by_user {

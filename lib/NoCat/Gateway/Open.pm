@@ -20,31 +20,59 @@ my %MIME = (
 );
 
 sub handle {
-    my ( $self, $peer )	= @_;
-    my $request		= $self->read_http_request( $peer ) or return;
+    my ( $self, $peer )       = @_;
+    my $request               = $self->read_http_request( $peer );
 
-    $self->log( 7, "Peer ", $peer->socket->peerhost, " requests $request->{Host}" );
-    # $self->log( 9, "HTTP headers: @{[ %$request ]}" );
+    if ( my $host = $request->{Host} ) {
+	my $me = $peer->gateway_ip;
 
-    # If this is a post request, it might be the auth service contacting us.
-    # Otherwise, it must be a user, who needs to be sent to the auth service.
-    #
-    if ( $request->{Method} eq 'POST' ) {
-	$self->verify ( $peer => $request );
-    } elsif ( $request->{Host} eq $peer->socket->sockhost ) {
-        if ( $request->{URI} eq "/" ) {
-            $request->{URL} = $self->{HomePage};
-            $self->capture( $peer => $request );
-        } elsif ( $request->{URI} =~ /^\/\?redirect=([^&]+)/o ) {
-            $request->{URL} = $self->url_decode( $1 );
-            $self->splash( $peer => $request );
+        $self->log( 7, "Peer ", $peer->socket->peerhost, " requests $host" );
+
+        # $self->log( 9, "HTTP headers: @{[ %$request ]}" );
+
+        # If the request was intended for us...
+        if ( $host eq $me or $host =~ /:$self->{GatewayPort}$/ ) {
+
+            # User accepted the AUP?
+	    if ( $request->{Method} eq 'POST' and $host eq $me ) {
+		$self->verify ( $peer => $request );
+
+            # User wants a status page.
+            } elsif ( $request->{URI} eq "/status" ) {
+		$self->status( $peer => $request );
+
+            # User has been captured. Show them the splash page.
+            } elsif ( $request->{URI} =~ /^\/\?redirect=([^&]+)/o ) {
+                $request->{URL} = $self->url_decode( $1 );
+                $self->splash( $peer => $request );
+
+	    # If nothing special is requested, capture the user.
+            } elsif ( $request->{URI} eq "/" ) {
+                $request->{URL} = $self->{HomePage};
+                $self->capture( $peer => $request );
+
+            # Must be some other content in here.
+            } else {
+                $self->serve( $peer => $request );
+            }
         } else {
-            $self->serve( $peer => $request );
+	    # The user was trying to get out. Capture them.
+	    $self->capture( $peer => $request ); 
         }
     } else {
-	$self->capture( $peer => $request ); 
+        $self->log( 7, "No HOST header in request - Peer ", $peer->ip );
+        $self->log( 9, "HTTP headers: " );
+        while ((my $key, my $value) = each %$request) {
+            if ( defined $value ) {
+                $self->log( 9, "    $key: $value" );
+            } else {
+                $self->log( 9, "    $key" );
+            }
+        }
+        $peer->socket->close;
     }
 }
+
 
 sub serve {
     my ( $self, $peer, $request ) = @_;
@@ -65,7 +93,7 @@ sub serve {
 	unless -r $file and -f $file and my $size = -s $file;
 
     $peer->socket->print( 
-	"HTTP 200 OK\r\n",
+	"HTTP/1.1 200 OK\r\n",
 	"Content-type: $ext\r\n",
 	"Content-length: $size\r\n\r\n",
 	scalar $self->file( $file )
@@ -89,27 +117,22 @@ sub not_found {
 
 sub capture {
     my ( $self, $peer, $request ) = @_;
-    my $host	= $peer->socket->sockhost;
+    my $host	= $peer->gateway_ip;
     my $url	= $self->url_encode( $request->{URL} );
 
-    $self->log( 8, "Capturing peer", $peer->socket->peerhost );
+    $self->log( 8, "Capturing peer", $peer->ip );
     $self->redirect( $peer => "http://$host/?redirect=$url" );
 }
 
 sub splash {
     my ( $self, $peer, $request ) = @_;
-    my $socket = $peer->socket;
     
-    $request->{action}	    = "http://" . $socket->sockhost . "/";
-    $request->{redirect}    = $request->{URL};
+    $request->{action}		 = "http://" . $peer->gateway_ip . "/";
+    $request->{redirect}	 = $request->{URL};
+    $request->{ConnectionCount}  = $self->peer_count;
  
-    $self->log( 8, "Displaying splash page to peer", $peer->socket->peerhost );
-    $peer->socket->print( 
-	"HTTP/1.1 200 OK\r\n",
-	"Content-type: text/html\r\n\r\n",
-	$self->template( SplashForm => $request )
-    );
-    $peer->socket->close;
+    $self->log( 8, "Displaying splash page to peer", $peer->ip );
+    $self->respond( $peer, SplashForm => $request )
 }
 
 sub verify {
@@ -124,11 +147,11 @@ sub verify {
 	if $line =~ /(?:^|&)redirect=([^&]+)/o;
     
     if ( $url ) {
-	$self->log( 5, "Opening portal for " . $socket->peerhost . " to $url" );
+	$self->log( 5, "Opening portal for " . $peer->ip . " to $url" );
 	$self->permit( $peer => PUBLIC );
 	$self->redirect( $peer => $url ); 
     } else {
-	$self->log( 5, "POST failed from " . $socket->peerhost );
+	$self->log( 5, "POST failed from " . $peer->ip );
 	$self->capture( $peer => $request );
     }
 

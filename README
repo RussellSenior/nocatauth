@@ -1,4 +1,4 @@
-NoCat Authentication v0.78
+NoCat Authentication v0.80
 ===========================
 (c) 2001, 2002 Schuyler Erle & Robert Flickenger.
 
@@ -34,6 +34,10 @@ This code also includes contributions from:
 * Pasi Lahtinen (fix for RedHat 7.1 ipchains/iptables strangeness)
 * Matt Peterson (*BSD ipf detection and support)
 * Michael Codanti (ARP expiration and a bunch of other stuff)
+* Don Park (gateway status page)
+* Richard Lotz (OpenBSD packetfilter support)
+* Nathan Zorn (LDAP support)
+* Jan-Patrick Perisse (RADIUS support)
 
 ...and, of course, a slew of other people who provide ideas, rants, flames,
 public demos, and even the occasional patch.
@@ -49,9 +53,10 @@ http://nocat.net/download/NoCatAuth/
 Installation
 ============
 
-Read the INSTALL to get a quick jumpstart.  Read doc/* (particularly
-Introduction.txt and AuthService.txt) for more details.
+*** Read the INSTALL to get a quick jumpstart.  Read doc/* (particularly
+Introduction.txt and AuthService.txt) for more details. ***
 
-For more assistance, and to contribute, join the NoCat mailing list.  See
-http://nocat.net for more details.
+For more assistance, and to contribute, join the NoCat mailing list, or
+find us on IRC at irc.openprojects.net #wireless.  See http://nocat.net
+for more details.
 

@@ -107,7 +107,12 @@ if ( $params->{mode} =~ /^popup/io ) {
 
 # Or something's really wrong.
 } else {
-  $authserv->display( LoginForm => "Authentication error for connection $params->{token}: $!" );
+    my $err = $!;
+    if ($err =~ /Connection refused/io) { 
+	$authserv->display( LoginForm => "Can't connect to your gateway. If it's behind a NAT'ed firewall, it needs to run in Passive Mode." );
+    } else {
+	$authserv->display( LoginForm => "Authentication error for connection $params->{token}: $!" );
+    }
 }
 
 $params->{logout} = $authserv->logout_url; # Make a logout link.

@@ -2,6 +2,7 @@ package NoCat::Source::Passwd;
 
 use NoCat::Source;
 use Fcntl qw( :flock :seek );
+use Digest::MD5 qw( md5_base64 );
 use strict;
 use vars qw( @ISA @REQUIRED *FILE );
 
@@ -16,6 +17,7 @@ sub store {
     my ( $self, $fh, $data ) = @_;
     truncate( $fh, 0 );
     seek( $fh, 0, SEEK_SET );
+
     while (my ($key, $val) = each %$data) {
         print $fh "$key:";
         if (ref $val) {
@@ -68,12 +70,25 @@ sub create_user {
     $self->store_user( $user );
 }
 
+sub check_password {
+    my ($self, $user) = @_;
+    # MD5 the password if it's not already MD5'd, prior to actually using it.
+    $user->set_password( md5_base64( $user->passwd ), 1 ) if $user->changed_password;
+    return $user->passwd;
+}
+
 sub store_user {
     my ( $self, $user )	= @_;
     my $id = $user->id;
-    my $pw = $user->passwd;
+    my $pw = $self->check_password($user);
 
     $self->fetch( UserFile => sub { $_[1]{$id} = $pw } ); 
+}
+
+sub authenticate_user {
+    my ($self, $user_pw, $user) = @_;
+    my $stored_pw = $self->check_password( $user ); 
+    return md5_base64( $user_pw ) eq $stored_pw;
 }
 
 sub fetch_user_by_id {

@@ -4,12 +4,11 @@ PREFIX	    = /usr/local/nocat
 
 ### These aren't the droids you're looking for.
 
-INSTALL	    = cp -adRu
+INSTALL	    = cp -R
 INST_BIN    = bin
 INST_ETC    = etc
 INST_GW	    = lib pgp htdocs
 INST_SERV   = cgi-bin
-FW_TYPE	   := $(shell ./detect-fw.sh)
 
 all: install
 
@@ -25,21 +24,15 @@ $(PREFIX):
 
 check_fw:
 	@echo -n "Checking for firewall compatibility: "
-	[ "$(FW_TYPE)" ] || ( echo "Can't seem to find supported firewall software. Check your path?" && exit 255 )
-	@echo "$(FW_TYPE) found."
+	@bin/detect-fw.sh bin || ( echo "Can't seem to find supported firewall software. Check your path?" && exit 255 )
 	
 check_gpg:
 	@echo "Looking for gpg..."
-	which gpg >/dev/null  || ( echo "Can't seem to find gpg in your path. Is it installed?"  && exit 255 )
+	@which gpg >/dev/null  || ( echo "Can't seem to find gpg in your path. Is it installed?"  && exit 255 )
 
 check_gpgv:
 	@echo "Looking for gpgv..."
-	which gpgv > /dev/null || ( echo "Can't seem to find gpgv in your path. Is it installed?" && exit 255 )
-
-FORCE:
-
-$(INST_BIN)/$(FW_TYPE)/*: FORCE
-	ln -sf $(FW_TYPE)/$(notdir $@) $(INST_BIN)
+	@which gpgv > /dev/null || ( echo "Can't seem to find gpgv in your path. Is it installed?" && exit 255 )
 
 install_bin:
 	$(INSTALL) $(INST_BIN) $(PREFIX)
@@ -51,7 +44,7 @@ install_gw: $(PREFIX) install_bin
 	@echo "Installing NoCat to $(PREFIX)..."
 	$(INSTALL) $(INST_GW) $(PREFIX)
 
-gateway: check_fw check_gpgv $(INST_BIN)/$(FW_TYPE)/* install_gw gw_success
+gateway: check_fw check_gpgv install_gw gw_success
 	$(INSTALL) gateway.conf $(PREFIX)/nocat.conf
 
 authserv: check_gpg install_gw install_etc auth_success

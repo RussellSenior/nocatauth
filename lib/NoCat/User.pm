@@ -1,7 +1,6 @@
 package NoCat::User;
 
 use NoCat;
-use Digest::MD5 qw( md5_base64 );
 use strict;
 use vars qw( @REQUIRED @ISA );
 
@@ -17,10 +16,6 @@ sub new {
     my $self = $class->SUPER::new( @_ );
 
     $self->{Data}   ||= {};
-    
-    if ( my $new_pw = $self->passwd ) {
-	$self->set_password( $new_pw );
-    } 
     return $self;
 }
 
@@ -42,12 +37,20 @@ sub set {
     return $self;   
 }
 
-# set_password() MD5-hashes a password and sets the password field to it.
+# set_password() sets a new password, and notes the change so that
+# the source driver can re-encrypt the password if need be. changed_password()
+# allows the driver to detect this condition.
 #
 sub set_password {
-    my ( $self, $new_pw ) = @_;
-    $self->{Data}{$self->{UserPasswdField}} = md5_base64( $new_pw );
+    my ( $self, $new_pw, $encrypted ) = @_;
+    $self->{Data}{$self->{UserPasswdField}} = $new_pw;
+    $self->{Changed_Passwd} = not $encrypted;
     return $self->{Data};   
+}
+
+sub changed_password {
+    my $self = shift;
+    return $self->{Changed_Passwd};
 }
 
 # data() returns a hash containing the values of the User object. 
@@ -106,10 +109,7 @@ sub store {
 #
 sub authenticate {
     my ( $self, $user_pw )  = @_;
-    my $stored_pw	    = $self->passwd
-	or $self->log( 1, "User password not loaded yet" );
-
-    return md5_base64( $user_pw ) eq $stored_pw;
+    return $self->source->authenticate_user( $user_pw,$self );
 }
 
 sub groups {

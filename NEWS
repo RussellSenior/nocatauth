@@ -1,11 +1,80 @@
 Release Notes:
 ==============
 
+05/06/2002 (v0.80)
+
+Ugh, two months since our last release... :-( Well, a number of factors have
+intervened to make thorough testing temporarily difficult, and there have
+been some particularly pesky bugs that we wanted to knock out before
+continuing on our merry way. Some really exciting things have transpired
+since then, however.
+
+Fixed in this release:
+
+* Bugginess in network autoconfiguration has been fixed. Autoconfig should
+do the right thing if you've only got two network interfaces; otherwise, bet
+on having to at least set your InternalDevice.
+
+* The dreaded IE5/6 incompatibility with Passive mode appears to have been
+fixed. Other browsers, such as OmniWeb, appear to be a lot happier with
+Passive mode, now, too.
+
+New in this release:
+
+* Basic packetfilter support added for OpenBSD, thanks to Richard Lotz! This
+support has NOT YET been thoroughly tested, so your feedback would really be
+appreciated.
+
+* New Open mode status page, based on patches from Don Park and Michael
+Codanti, and recommendations from Andrew Woods. Way cool.
+
+* Loopback firewall mode, which should in theory permit testing of the NoCat
+gateway and authservice all on a single machine running iptables with no
+network.  You can set up loopback mode by doing an ordinary "make gateway",
+followed by "bin/detect-fw.sh loopback bin/" from /usr/local/nocat. Please
+don't use this unless you really know what you're doing.
+
+* Added LDAP support, using a NoCat::Source driver written by Nathan Zorn.
+We don't have an LDAP server, so you'll have to test this and let us know if
+it works, and send patches if it doesn't. :-)
+
+* Added RADIUS support, based on sample code submitted by Jan-Patrick
+Perisse. We don't have a RADIUS server, either, so please let me know if
+this works! :-)
+
+* The NoCat gateway now by default uses a post-forking model to handle
+incoming client requests, which appears to have made the gateway
+significantly more stable on PersonalTelco's public nodes. You can turn this
+off (don't ask me why you'd want to, but you can) by adding "ForkOff 0" to
+your nocat.conf.
+
 03/07/2002 (v0.78)
 
 Major bug fixes.
 
+* Captive mode fixed. (Oops.)
 
+* Passive mode really works now. If you run an authservice, it will need
+the new renew_pasv.html form, plus a PassiveRenewForm directive that points
+to it. See the latest authserv.conf for an example. I haven't tested passive
+mode with every available browser, so the login renewal may not work with
+every JavaScript implementation. If not, patches welcome. :-) The basic
+gist, though, is that, using passive mode, you can now run NoCatAuth from
+behind a NAT'ed firewall. (Hooray!)
+
+* Automatic network discovery has been added! Through the magic of ifconfig
+and netstat, NoCatAuth can now detect most gateway configurations
+automatically. This makes InternalDevice, ExternalDevice, and LocalNetwork
+optional in your nocat.conf, *unless* NoCat can't figure out what's going
+on.
+
+* Due to popular demand, you can now (once again?) run your gateway and your
+authservice on the same machine. They should be installed to separate
+directories, however. Of course, use of this feature is not recommended
+for security reasons, but it will let you try out NoCatAuth without having
+to set up multiple machines.
+
+-=-=-=-=-
 
 02/15/2002 (v0.77)
 
