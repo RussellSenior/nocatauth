@@ -187,14 +187,23 @@ sub deny {
 }
 
 sub classify {
-    my ( $self, $peer, $class ) = @_;
-
-    $class = $peer->class( $class );
-
+    my ( $self, $peer ) = @_;
     my $user = $peer->user;
+    my $class;
     
-    return OWNER if $user and grep( $user eq $_, $self->owners );
-    return $class || PUBLIC;
+    if ($user and grep( $user eq $_, $self->owners )) {
+    	$class = OWNER;
+    } else {
+	$self->log(9, "User (@{[ $peer->groups ]}) v. trusted (@{[ $self->groups ]})" );
+        my %prospect = map { $_ => 1 } $self->groups;
+	if ( grep $_, @prospect{ $peer->groups } ) {
+	    $class = MEMBER;
+	} else {
+	    $class = PUBLIC;
+	}
+    }
+
+    return $peer->class( $class );
 }
 
 sub owners {
@@ -224,6 +233,11 @@ sub owners {
     # if the list changes.
     $self->{_OwnerList} = \@owners;
     return @owners;
+}
+
+sub groups {
+    my $self = shift;
+    return grep($_, split( /\W+/, $self->{TrustedGroups} ));
 }
 
 sub redirect {

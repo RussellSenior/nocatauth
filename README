@@ -6,11 +6,12 @@ Credits
 =======
 The software has been largely written by Schuyler Erle, with a
 herculean amount of motivation and assistance from Rob
-Flickenger. Moral support and testing effort has been provided by
+Flickenger.  Moral support and testing effort has been provided by
 Nate Boblitt, Jim Rosenbaum, and Adam Flaherty, who also did a
 lot of work on the look and feel of the auth service. Additional
-testing was provided by Terry Schmidt and Rich Gibson.  Terrie
-Miller provided us with the original design for the website.
+testing was provided by Terry Schmidt and Rich Gibson. Rich has also
+submitted significant documentation patches. Terrie Miller provided
+us with the original design for the website.
 
 We hope NoCat Auth helps you provide unlimited bandwidth
 everywhere for free.

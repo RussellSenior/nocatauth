@@ -15,7 +15,7 @@ CREATE TABLE EventLog (
   Event varchar(255) default NULL,
   Created datetime default NULL,
   PRIMARY KEY (ID)
-) TYPE=MyISAM;
+);
 
 #
 # Table structure for table 'Hardware'
@@ -29,7 +29,7 @@ CREATE TABLE Hardware (
   Created datetime default NULL,
   Modified timestamp(14) NOT NULL,
   PRIMARY KEY (ID)
-) TYPE=MyISAM;
+);
 
 #
 # Table structure for table 'Member'
@@ -41,11 +41,24 @@ CREATE TABLE Member (
   Created datetime default NULL,
   Modified timestamp(14) NOT NULL,
   Status tinyint(3) unsigned default NULL,
-  User varchar(255) NOT NULL default '',
+  User varchar(250) NOT NULL default '',
   Pass varchar(255) NOT NULL default '',
   Name varchar(255) default NULL,
   PRIMARY KEY (User)
-) TYPE=MyISAM;
+);
+
+#
+# Table structure for table 'Group'
+#
+
+CREATE TABLE Network  (
+    User varchar(250) not null,
+    Network varchar(250) not null,
+    Admin char(1) default '',
+    Created datetime default NULL,
+    Modified timestamp(14) NOT NULL,
+    PRIMARY KEY (User, Network)
+);
 
 #
 # Table structure for table 'Node'
@@ -63,5 +76,5 @@ CREATE TABLE Node (
   Lat float default NULL,
   Lon float default NULL,
   PRIMARY KEY (ID)
-) TYPE=MyISAM;
+);
 

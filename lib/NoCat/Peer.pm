@@ -13,6 +13,7 @@ sub new {
     
     $self->socket( $self->{Socket} ) if defined $self->{Socket};
     $self->class( "", "" ) unless defined $self->{Class};
+    $self->groups( $self->{Groups} || "" ) unless ref $self->{Groups};
     $self->timestamp;
     return $self;
 }
@@ -97,7 +98,6 @@ sub user {
 
 sub status {
     my ( $self, $status ) = @_;
-
     $self->{Status} = $status if defined $status;
     return( $self->{Status} || "" );
 }
@@ -107,6 +107,12 @@ sub class {
     $self->{Class} = $class if defined $class;
     $self->user( $user ) if defined $user;
     return( $self->{Class} || PUBLIC );
+}
+
+sub groups {
+    my ( $self, $groups ) = @_;
+    $self->{Groups} = [ grep($_, split( /\W+/, $groups )) ] if defined $groups;
+    return @{$self->{Groups}};
 }
 
 1;

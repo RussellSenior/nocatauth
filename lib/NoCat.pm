@@ -265,3 +265,138 @@ sub peer {
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+NoCat - Common Library and parent object for NoCat Authorization and Administration Services.
+
+NoCat.pm contains constructor methods for:
+
+NoCat::AuthService
+NoCat::Firewall
+NoCat::Gateway
+NoCat::Message
+NoCat::Peer
+NoCat::User
+
+=head1 SYNOPSIS
+
+ use lib '/usr/local/nocat/lib'; 
+ use NoCat;
+
+ my $authserv = NoCat->auth_service( ConfigFile => '' );
+ my $firewall = NoCat->firewall( ConfigFile => $ENV{NOCAT} );
+ my $gateway  = NoCat->gateway( ConfigFile => $ENV{NOCAT} );
+ my $message  = NoCat->message( ConfigFile => $ENV{NOCAT} );
+ my $peer     = NoCat->peer( ConfigFile => $ENV{NOCAT} );
+ my $user     = NoCat->user( ConfigFile => $ENV{NOCAT} );
+
+=head1 DESCRIPTION 
+
+This is wonderful Magick.  
+
+=head1 METHODS 
+
+=item new() Constructor  (do not call directly)
+
+=item file() Reads and return a text file.  
+
+Will read the passed file, and will attempt to add the Document_Root 
+to the file name when Document_Root exists (ie. when run as a CGI).
+
+  $user = NoCat->user( ConfigFile => ... );
+
+  $st = $user->file( '/usr/local/nocat/nocat.conf' );
+
+	or
+
+  @lines = $user->file( '/usr/local/nocat/nocat.conf' );
+
+=item parse() Splits an array of lines into an array of key->value pairs 
+
+Used internally by configuration mechanism
+
+=item deparse() The opposite of parse.  Joins an array of key->value pairs into
+an array of conifiguration file ready lines. 
+
+=item read_config() Reads a NoCat configuration file and loads the key->value
+pairs into the current $self object namespace hash.
+
+ For Example:  Assume these lines are in the config file test.conf:
+ key1   value1
+ key2   value2
+
+ Running this code:
+
+ $user = NoCat::user(ConfigFile => '' );
+ $user->read_config('test.conf');
+ print "$user->{key1}\n";
+ print "$user->{key2}\n";
+
+ will first cause the default nocat.conf to be loaded, and then load the 
+ additional config file 'test.conf' and display the values from test.conf:
+
+ value1
+ value2
+
+ (In addition to a variable number of debug messages, see 'Verbosity' in nocat.conf)
+
+=item check_config() Checks the sub-class defined @REQUIRED list for mandatory config
+file variables.  Fails, loudly, if any required config variables are not defined. 
+
+=item log() Display a message.
+  This will display the message as long as $verbosity is below the value of Verbosity in nocat.conf
+
+  $user->log( $verbosity, 'My Message' );
+   
+=item url_encode() Do basic url encoding of each parameter.  Return list or first element depending on context.
+
+Do not use on a complete url string like 'http://www.nocat.org/test.cgi?k1=value1&k2=value2, rather, call url_encode
+on each parameter, in turn, and then assemble the url string.
+
+=item url_decode() Reverse url_encode. 
+
+=item format() Fill a template of form $var with the values of $self->{var}, plus you can pass an additional 
+hashref of additional values to be substituted.   Called from template()
+
+=item template() Pass a template, and optional hashref, and it returns the filled template. 
+
+=item gateway() Returns a NoCat::Gateway object
+
+=item firewall() Returns a NoCat::Firewall object
+
+=item auth_service() Returns a NoCat::AuthService object
+
+=item user() Returns a NoCat::Gateway object
+
+=item message() Returns a NoCat::Message object
+
+=item peer() Returns a NoCat::Peer object
+
+=head1 CONFIGURATION
+
+The NoCat system uses the configuration file found in $ENV{NOCAT} by default.
+You may also pass all of the constructors a ConfigFile parameter to specify
+the location of your ocnfiguration file.  If you use an empty value for 'ConfigFile'
+then the system will search for nocat.conf in the directory above your script.
+
+The Format of the config file is: <Directive> <Value>, one per
+line. Trailing and leading whitespace is ignored. Any
+line beginning with a punctuation character is assumed to
+be a comment.
+
+=head1 SEE ALSO
+
+ NoCat::AuthService
+ NoCat::Firewall
+ NoCat::Gateway
+ NoCat::Message
+ NoCat::Peer
+ NoCat::User
+
+=head1 AUTHORS
+
+Schuyler Erle (SDE) & Robert Flickenger (RJF). Documentation written by Rich Gibson.
+

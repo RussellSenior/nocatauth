@@ -70,7 +70,8 @@ if ( $p{mode} =~ /^skip/io or ( $p{class} and $p{class} =~ /^public/io ) ) {
     # $authserv->display( LoginForm => "LoginBadStatus" ) unless $user->authorize;
 
     # Set the service class based on the user's authorization.
-    $p{class} = $user->authorize ? "Member" : "Public";
+    $p{member}	= join(" ", $user->authorize);
+    $p{class}	= $p{member} ? "Member" : "Public";
 }
 
 # Set the class variable for $authserv->renewal.

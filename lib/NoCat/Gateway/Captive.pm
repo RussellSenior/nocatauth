@@ -6,7 +6,10 @@ use vars qw( @ISA @REQUIRED );
 use strict;
 
 @ISA	    = 'NoCat::Gateway';
-@REQUIRED   = ( @NoCat::Gateway::REQUIRED, qw( AuthServiceURL LogoutURL ));
+@REQUIRED   = (
+    @NoCat::Gateway::REQUIRED, 
+    qw( TrustedGroups AuthServiceURL LogoutURL )
+);
 
 sub handle {
     my ( $self, $peer )	= @_;
@@ -52,7 +55,8 @@ sub verify {
 	return $self->log( 2, "Bad token match!" )	if $client->token ne $auth{Token};
 
 	# Identify the user and class.
-	$client->class( $auth{Class}, $auth{User} ); 
+	$client->user( $auth{User} ); 
+	$client->groups( $auth{Member} );
 
 	# Perform the requested action.
 	if ( $auth{Action} eq PERMIT ) {
