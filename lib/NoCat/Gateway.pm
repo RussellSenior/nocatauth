@@ -127,7 +127,7 @@ sub check_inactive {
     my $self = shift;
 
     # Only fetch the table once to save some ticks
-    my $arp = $self->firewall->fetch_arp_table( $self->firewall->BY_MAC );
+    my $arp = $self->firewall->arp_table( $self->firewall->BY_MAC );
 
     while ( my ($token, $peer) = each %{$self->{Peer}} ) {
         if ( defined $arp->{$peer->mac} ) {
@@ -319,7 +319,7 @@ You should be redirected now.  If not, click <a href="$url">here.</a>
 sub no_response {
     my ( $self, $peer ) = @_;
     $peer->socket->print(
-	"HTTP/1.1 304 No Reponse\r\n\r\n" );
+	"HTTP/1.1 204 No Reponse\r\n\r\n" );
     $peer->socket->close;
 }
 

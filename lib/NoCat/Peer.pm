@@ -126,10 +126,11 @@ sub groups {
     # Every user who is a member of *some* group is automatically a 
     # member of the magical "Any" group.
     #
-    $self->{Groups} = [ grep($_, split( /\W+/, $groups )), ANY ]
-	if defined $groups;
+    my $list = $self->{Groups} ||= [];
+    @$list = grep $_, split( /\W+/, $groups ), ANY
+	if $groups;
 
-    return @{$self->{Groups}};
+    return @$list;
 }
 
 1;

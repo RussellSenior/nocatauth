@@ -34,7 +34,7 @@ sub verify {
     my $auth = $self->punch_ticket( $msg, $peer->mac ) or return;
 
     if ( $auth->{Mode} =~ /^renew/io ) {
-	$self->no_reponse( $peer );
+	$self->no_response( $peer );
     } else {
 	$self->redirect( $peer => $auth->{Redirect} );
     }

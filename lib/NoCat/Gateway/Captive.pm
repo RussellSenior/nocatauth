@@ -118,7 +118,12 @@ sub logout {
 
 sub capture_params {
     my ( $self, $peer, $request ) = @_;
-    return { mac => $peer->mac, token => $peer->token, redirect => $request };
+    return { 
+	mac => $peer->mac, 
+	token => $peer->token,
+	redirect => $request,
+	timeout => $self->{LoginTimeout}
+    };
 }
 
 sub capture {

@@ -8,15 +8,17 @@ use constant COOKIE_ID => "Login";
 
 @ISA	    = 'NoCat';
 @REQUIRED   = qw( 
-    Database DB_User DB_Passwd GatewayPort NotifyTimeout
-    LoginTimeout RenewTimeout HomePage 
+    GatewayPort NotifyTimeout LoginTimeout RenewTimeout HomePage 
 );
 
 sub cgi {
     my $self = shift;
-    require CGI;
-    CGI->import( "-oldstyle_urls" ); # Thanks, Lincoln.
-    return $self->{CGI} ||= CGI->new( @_ );
+    unless ( $self->{CGI} ) {
+	require CGI;
+	CGI->import( "-oldstyle_urls" ); # Thanks, Lincoln.
+	$self->{CGI} = CGI->new( @_ );
+    }
+    return $self->{CGI};
 }
 
 sub set_cookie {
@@ -70,6 +72,7 @@ sub gateway_ip {
     # in nocat.conf if one is found. 
 
     if ( $self->{LocalGateway} ) {
+	local $^W = 0; # Thanks to Net::Netmask
         require Net::Netmask;
         my $local_net = new Net::Netmask( $self->{LocalNetwork} );
 
@@ -78,6 +81,11 @@ sub gateway_ip {
 		"directing to local gateway $self->{LocalGateway}." );
 	    return $self->{LocalGateway};
 	}
+    }
+
+    if (my $nat = $self->cgi->param("gateway")) {
+        $nat =~ s/:.*$//o; # strip off port portion.
+        return $nat;
     }
 
     return $gw;
@@ -133,9 +141,12 @@ sub notify_via_client {
     # send it to the gateway via GET request.
     # We're just given the address and port of the gateway, so
     # we have to add the http:// part.
-    #
+
     $data->{redirect} = $self->url(
 	"http://$data->{gateway}" => { ticket => $tix } );
+	
+    my $salt = ++substr( $data->{token}, -8 );
+    $data->{token} = $self->md5_hash( $data->{token}, $salt );
 
     return $data;
 }
@@ -157,7 +168,7 @@ sub notify_gateway {
 	unless $gateway;
 
     # Format the arguments into a PGP signed message.
-
+    $data->{timeout} = $self->get_login_timeout($data);
     my $msg = $self->message( $action, $data )->sign;
 
     # Make an HTTP POST request of the auth message to the gateway.
@@ -174,7 +185,7 @@ sub notify_gateway {
 
     # Get the response, then throw away the rest of the HTTP header.
     my ( $http, $code, $response ) = split /\s+/, scalar <$gateway>, 3;
-    $http = <$gateway> until $http =~ /^\s*$/os;
+    $http = <$gateway> while defined($http) and $http !~ /^\s*$/os;
 
     my %args;
 
@@ -183,6 +194,7 @@ sub notify_gateway {
 	%args = $self->parse( <$gateway> );
     } else {
 	# Save the error code.
+	$response =~ s/\s+/ /gos if $response;
 	$self->log( 8, "Gateway returned $code ($response) for $data->{mac}." );
 	$args{Error} = $code;
 	$args{Message} = $response;
@@ -203,35 +215,47 @@ sub is_login {
     return scalar( $mode =~ /^(?:login|skip)/io );
 }
 
-sub renew_url {
-    my ( $self, $args )	= @_;
-    my $cgi		= $self->cgi;
+sub get_login_timeout {
+    my ( $self, $gw )	= @_;
+    my $vars = $self->cgi->Vars;
     my $timeout;    
 
     # If there's arguments from a gateway response, use them.
     #
-    if ( $args ) {
-	$timeout = $args->{Timeout} || $args->{timeout};
-	$cgi->param( token => $args->{Token} );
-    } else {
-	$timeout = $cgi->param( "timeout" ); 
+    $timeout = $gw->{Timeout} || $gw->{timeout} if $gw;
+    $timeout ||= $vars->{timeout}; 
+
+    if ( not $timeout or $timeout < $self->{MinLoginTimeout} ) {
+	$self->log( 6, "LoginTimeout missing or too low in renew_url!" ) unless $timeout;
+	$timeout = $self->{LoginTimeout};
     }
 
-    $self->log( 6, "Don't know LoginTimeout in renew_url!" ) unless $timeout;
+    return $timeout;
+}
 
-    $timeout ||= $self->{LoginTimeout};
-    $cgi->param( timeout => $timeout );
+sub popup_url {
+    my ( $self, $gw ) = @_;
+    my %vars = $self->cgi->Vars;
 
-    # Create a new popup box, or if we already have one, just refresh it.
-    #
-    if ( $self->is_login ) {
-	$cgi->param( mode => "popup" );
-	return $cgi->url( -query => 1 );
-    } else {
-	$cgi->param( mode => "renew" );
-	$timeout = int( $timeout * $self->{RenewTimeout} );
-	return "$timeout; URL=" . $cgi->url( -query => 1 );
-    }
+    $vars{timeout} = $self->get_login_timeout( $gw );
+    $vars{mode}    = "popup";
+    $vars{token}   = $gw->{Token} || $gw->{token} if $gw;
+
+    delete @vars{qw{ redirect ticket }};
+
+    return $self->url( $self->cgi->url, \%vars );
+}
+
+
+sub renew_url {
+    my ( $self, $gw ) = @_;
+    my $vars = $self->cgi->Vars;
+    
+    $vars->{timeout} = int( $self->get_login_timeout($gw) * $self->{RenewTimeout} );
+    $vars->{mode}    = "renew";
+    $vars->{token}   = $gw->{Token} || $gw->{token} if $gw;
+
+    return "$vars->{timeout}; URL=" . $self->cgi->url( -query => 1 );
 }
 
 sub logout_url {
@@ -259,12 +283,11 @@ sub display {
 }
 
 sub success {
-    my ( $self, $form, $vars ) = @_;
+    my ( $self, $form, $args ) = @_;
+    my %vars = ( $args ? %$args : $self->cgi->Vars );
     my @headers;    
-
-    $vars ||= $self->cgi->Vars;
-
-    my $redirect = ( $vars->{redirect} ||= $self->{HomePage} );
+    
+    my $redirect = $vars{redirect} || $self->{HomePage};
 
     # Add a refresh time of five seconds... unless one is already set.
     $redirect = "5; URL=$redirect" unless $redirect =~ /^\d+;/o;
@@ -273,11 +296,13 @@ sub success {
     # push @headers, -Cookie => $self->{Cookie} if $self->{Cookie};
 
     # Hit the g/w with the ticket first if there is one, get a 304, 
-    # then refresh the renewal link.
-    push @headers, -Status => "302 Moved", -Location => $vars->{deliver_ticket}
-	if $vars->{deliver_ticket};
+    # then refresh the renewal link.	
+    # push @headers, -Status => "302 Moved", -Location => $vars->{deliver_ticket}
+    #    if $vars->{deliver_ticket};
 
-    print $self->cgi->header( @headers ), $self->template( $form => $vars );
+    $vars{CGI} = $self->cgi->url;
+
+    print $self->cgi->header( @headers ), $self->template( $form => \%vars );
 }
 
 sub check_user {

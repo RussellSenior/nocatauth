@@ -8,6 +8,7 @@ use constant OWNER  => "Owner";
 use constant LOGOUT => "/logout";
 use constant LOGIN  => "/login";
 use constant ANY    => "Any";
+use constant ANONYMOUS => "UNKNOWN";
 
 use FindBin;
 use Exporter;
@@ -16,7 +17,7 @@ use vars qw( @ISA @EXPORT_OK *FILE );
 use strict;
 
 @ISA	    = "Exporter";
-@EXPORT_OK  = qw( PERMIT DENY PUBLIC MEMBER OWNER LOGIN LOGOUT ANY );
+@EXPORT_OK  = qw( PERMIT DENY PUBLIC MEMBER OWNER LOGIN LOGOUT ANY ANONYMOUS );
 
 my %Defaults = (
     ### Gateway server networking values.
@@ -29,6 +30,7 @@ my %Defaults = (
 
     ### No. of seconds before logins/renewals expire.
     LoginTimeout    => 300,
+    MinLoginTimeout => 60,
 
     ### Fraction of LoginTimeout to loiter before renewing.
     RenewTimeout    => .75,

@@ -48,19 +48,26 @@ sub pgp {
 
     } elsif ( $self->{GpgPath} and $self->{PGPKeyPath} and $Cmd_Map{$cmd} ) {
 	$cmd = "$self->{GpgPath} $Cmd_Map{$cmd} --homedir=$self->{PGPKeyPath} " .
-	    "--keyring trustedkeys.gpg -o-";
+	    "--keyring trustedkeys.gpg --no-tty -o-";
 	$cmd .= " 2>/dev/null" if $self->{Verbosity} < 7;
 
     } else {
 	die "Can't find required Message$cmd directive";
     }
 
-    open2( \*IN, \*OUT, $cmd ) or die "$cmd: $!";
+    local $SIG{CHLD} = "DEFAULT";
+
+    my $pid = open2( \*IN, \*OUT, $cmd ) or die "$cmd: $!";
     print OUT $txt;
-    close OUT;
+    close OUT;  
 
     $txt = do { local $/ = undef; <IN> };
     close IN;
+
+    if (waitpid($pid, 0) == -1 or $? >> 8 != 0) {
+	$self->log( 1, "$cmd returned error ", $? >> 8 );
+	return;
+    }
 
     $self->{Signed}++;
     $self->text( $txt );

@@ -12,6 +12,8 @@
 
 * Logout option for Open mode
 
+* Auto-munging of directories in nocat.conf and etc/authserv.conf on install rather than having to do it by hand.
+
 * Easy 'disable public access' option in nocat.conf
 
 * Easy MAC white/blacklisting in nocat.conf

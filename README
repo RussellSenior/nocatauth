@@ -1,6 +1,6 @@
-NoCat Authentication v0.77
+NoCat Authentication v0.78
 ===========================
-(c) 2001,2002 Schuyler Erle & Robert Flickenger.
+(c) 2001, 2002 Schuyler Erle & Robert Flickenger.
 
 Credits
 =======
@@ -23,6 +23,7 @@ Other Cool Cats (for their support, testing, code,
 * Rich Gibson
 * Terry Schmidt
 * Michael Codanti
+* Craig Slimmer
 
 This code also includes contributions from:
 
@@ -32,6 +33,7 @@ This code also includes contributions from:
 * Steve Beattie (original ipchains support)
 * Pasi Lahtinen (fix for RedHat 7.1 ipchains/iptables strangeness)
 * Matt Peterson (*BSD ipf detection and support)
+* Michael Codanti (ARP expiration and a bunch of other stuff)
 
 ...and, of course, a slew of other people who provide ideas, rants, flames,
 public demos, and even the occasional patch.

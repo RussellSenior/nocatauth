@@ -12,7 +12,11 @@ my %MIME = (
     jpeg    => "image/jpeg",
     gif	    => "image/gif",
     png	    => "image/png",
-    ico     => "image/x-icon"
+    ico     => "image/x-icon",
+    html    => "text/html",
+    htm	    => "text/html",
+    txt	    => "text/plain",
+    css	    => "text/css"
 );
 
 sub handle {
