@@ -37,8 +37,7 @@ $authserv->log( 7, sprintf( "User %s from %s requests %s",
 
 # Figure out which image button was clicked (since they don't have value="" attributes).
 if (my ($button) = grep $params{"mode_$_.x"}, qw( login skip logout )) {
-    $cgi->delete( $_ ) for ( "mode_$button.x", "mode_$button.y" );
-    $cgi->param( mode => $button );
+    delete $params{$_} for ( "mode_$button.x", "mode_$button.y" );
     $params{mode} = $button;
 }
 
@@ -89,10 +88,13 @@ if ( $params{mode} =~ /^popup/io ) {
 
     } elsif ( $params{mode} =~ /^renew/io ) {
 	$form = "RenewForm";
+	# Hit the g/w with the ticket first, get a 304, then refresh the renewal link.
+	$params{deliver_ticket}  = $params{redirect} || ""; # save the passive mode renewal
 	$params{redirect} = $authserv->renew_url( $gw );
 
     } else {
 	$form = "LoginOKForm";
+	$params{redirect} = $gw->{redirect} if $gw->{redirect};
 	$params{popup} = $authserv->renew_url( $gw ); 
 	    # set the javascript *link* to the popup box.
     }

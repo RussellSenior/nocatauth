@@ -6,6 +6,7 @@ use constant PUBLIC => "Public";
 use constant MEMBER => "Member";
 use constant OWNER  => "Owner";
 use constant LOGOUT => "/logout";
+use constant LOGIN  => "/login";
 use constant ANY    => "Any";
 
 use FindBin;
@@ -15,7 +16,7 @@ use vars qw( @ISA @EXPORT_OK *FILE );
 use strict;
 
 @ISA	    = "Exporter";
-@EXPORT_OK  = qw( PERMIT DENY PUBLIC MEMBER OWNER LOGOUT ANY );
+@EXPORT_OK  = qw( PERMIT DENY PUBLIC MEMBER OWNER LOGIN LOGOUT ANY );
 
 my %Defaults = (
     ### Gateway server networking values.
@@ -23,6 +24,8 @@ my %Defaults = (
     GatewayPort	    => 5280, 
     PollInterval    => 10,
     ListenQueue	    => 10,
+    IdleTimeout     => 300,
+    MaxMissedARP    => 2,
 
     ### No. of seconds before logins/renewals expire.
     LoginTimeout    => 300,
@@ -193,6 +196,15 @@ sub url_decode {
     return wantarray ? @args : $args[0];
 }
 
+sub url {
+    my ( $self, $url, $args )	= @_;
+    my %data = $self->url_encode( %$args );
+    $url  = $self->format( $self->{$url} || $url );
+    $url .= ( $url =~ /\?/o ? "&" : "?" );
+    $url .= join("&", map( "$_=$data{$_}", keys %data ));
+    return $url;
+}
+
 sub format {
     my ( $self, $string, $extra ) = @_;
 
@@ -203,6 +215,20 @@ sub format {
     $string =~ s/\$\{?(\w+)\}?/ defined( $args{$1} ) ? $args{$1} : "" /egios;
 
     return $string;
+}
+
+sub md5_hash {
+    my ( $self, $string, $salt ) = @_;
+
+    unless ( $salt ) {
+	my @chars = ( "0".."9", "a".."z", "A".."Z", ".", "/" );
+	$salt  = "";
+	$salt .= @chars[int rand @chars] for ( 1 .. 8 );
+    }
+
+    $salt = '$1$' . substr( $salt, 0, 8 ) if $salt !~ /^\$1\$/o;
+
+    return crypt( $string, $salt );
 }
 
 sub template {
@@ -231,7 +257,7 @@ sub instantiate {
 	if $class =~ y/A-Za-z0-9_://cd;
 
     eval "require $class" or
-        croak "Can't load class '$class'";
+        croak "Can't load class '$class': $@";
 
     return $class->new( Parent => $self, @_ );
 }

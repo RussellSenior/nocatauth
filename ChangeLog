@@ -1,3 +1,175 @@
+2002-02-08 14:30  sderle
+
+	* BUGS, cgi-bin/login, lib/NoCat/AuthService.pm,
+	lib/NoCat/Gateway/Passive.pm: Added some more cruft to support
+	Passive mode. Hopefully this is the last of it.
+
+2002-02-08 14:27  sderle
+
+	* nocat.conf: Removed nocat.conf in favor of authserv.conf and
+	gateway.conf.
+
+2002-02-08 14:27  sderle
+
+	* Makefile, authserv.conf, gateway.conf: Split nocat.conf into
+	gateway.conf and authserv.conf per Sameer Verma's suggestion, and
+	updated Makefile to copy the relevant conf file to
+	$PREFIX/nocat.conf.
+
+2002-02-07 22:51  sderle
+
+	* nocat.conf, lib/NoCat.pm, lib/NoCat/Gateway.pm: Updated ARP
+	expiration patch to disable it if MaxMissedARP is set to zero.
+
+2002-02-07 21:22  sderle
+
+	* lib/: NoCat.pm, NoCat/Gateway.pm, NoCat/Peer.pm: Applied Michael
+	Codanti's ARP cache expiration timeout patch.
+
+2002-01-26 19:01  sderle
+
+	* lib/NoCat/Gateway/Open.pm: Applied Michael Codanti's icon mime
+	type patch to support favicon.ico on the gateway.
+
+2002-01-25 12:00  sderle
+
+	* lib/NoCat/Gateway/Open.pm: Patch from Michael Codanti to make
+	requests to the document root of the open mode gateway be captured
+	with the HomePage defined in nocat.conf used as the redirect page.
+
+2002-01-24 19:53  sderle
+
+	* lib/: NoCat.pm, NoCat/Peer.pm: Implemented some damnfool
+	craziness involving libc MD5-hashing crypt functions, obsoleting
+	Digest::MD5 on the g/w.
+
+2002-01-24 19:11  sderle
+
+	* TODO: Updated TODO.
+
+2002-01-24 19:10  sderle
+
+	* cgi-bin/login: Fixed the somewhat irritating appearance of
+	Mode_foo.[xy] parameters.
+
+2002-01-24 19:08  sderle
+
+	* htdocs/login.html, lib/NoCat/AuthService.pm,
+	lib/NoCat/Gateway/Passive.pm: Fixed (slightly broken) Captive mode
+	support, and added LoginTimeout support to Passive mode.
+
+2002-01-24 18:17  sderle
+
+	* lib/: NoCat.pm, NoCat/Gateway/Captive.pm: Fixed stupid syntax bug
+	in Captive.pm.
+
+2002-01-23 23:38  sderle
+
+	* lib/NoCat/AuthService.pm: Debugged support for passive-mode
+	portal in AuthService.pm.
+
+2002-01-23 23:37  sderle
+
+	* lib/NoCat/Gateway/: Captive.pm, Passive.pm: Debugged support for
+	passive-mode portal.
+
+2002-01-23 23:35  sderle
+
+	* lib/NoCat/Message.pm: Message.pm now specifically includes
+	trustedkeys.gpg in call to gpg.
+
+2002-01-23 23:34  sderle
+
+	* lib/NoCat/: Firewall.pm, Gateway/Open.pm: Firewall.pm now calls
+	out to access.fw using system() rather than exec().
+
+2002-01-23 23:29  rob
+
+	* nocat.conf: Added a 'Passive' mode note.
+
+2002-01-23 23:28  rob
+
+	* bin/iptables/: access.fw, initialize.fw: Fixed some access
+	strangeness.  Also implemented AllowedWebHosts in initialize.fw.
+
+2002-01-23 23:19  sderle
+
+	* bin/ipchains/: access.fw, initialize.fw: Converted ipchains
+	scripts from DOS to unix mode (?!) and fixed horrible bugs in
+	ipchains/access.fw.
+
+2002-01-23 21:32  sderle
+
+	* lib/NoCat/AuthService.pm: Added check_user() method to
+	AuthService.pm.
+
+2002-01-23 21:30  sderle
+
+	* lib/NoCat/Group.pm: Undef group ID if the group can't be found.
+
+2002-01-23 20:57  sderle
+
+	* lib/NoCat.pm: NoCat.pm now exports LOGIN. Maybe someday we'll
+	actually use it for something.
+
+2002-01-23 20:06  rob
+
+	* nocat.conf, bin/iptables/initialize.fw, lib/NoCat/Firewall.pm:
+	Implemented AllowedWebHosts.  On to testing!
+
+2002-01-23 19:33  sderle
+
+	* lib/NoCat/Gateway.pm: NoCat/Gateway.pm now handles SIGCHLD
+	gracefully again, like it used to, before the great GatewayMode
+	fork. My bad. Thanks to Steve Beattie for reporting the bug.
+
+2002-01-23 19:06  sderle
+
+	* README: Added Michael Codanti to the README credits for his
+	debugging assistance.
+
+2002-01-21 14:41  sderle
+
+	* lib/NoCat/Gateway.pm: ->permit now stashes the peer object in
+	->{Peer}, fixing the open mode timeout-loss bug.
+
+2002-01-21 11:02  sderle
+
+	* TODO, bin/create, cgi-bin/login, htdocs/login.html, lib/NoCat.pm,
+	lib/NoCat/AuthService.pm, lib/NoCat/Message.pm, lib/NoCat/Peer.pm,
+	lib/NoCat/Gateway/Captive.pm, lib/NoCat/Gateway/Passive.pm: Added
+	support for passive mode gateway.
+
+2002-01-18 16:23  sderle
+
+	* bin/iptables/initialize.fw, lib/NoCat/Firewall.pm: Don't open the
+	firewall to AuthServiceAddr is GatewayMode is set to "Open".
+
+2002-01-18 12:34  rob
+
+	* htdocs/splash.html: Forgot /images/ (thanks Michael)
+
+2002-01-18 12:32  rob
+
+	* README, TODO, doc/Introduction.txt: Stuff.  The Intro ain't ready
+	yet.
+
+2002-01-10 12:13  sderle
+
+	* TODO: Updated TODO.
+
+2002-01-06 15:00  rob
+
+	* README, TODO: Updates.
+
+2002-01-06 14:52  rob
+
+	* README, doc/Introduction.txt: MattW credits
+
+2002-01-05 18:46  sderle
+
+	* ChangeLog: Added ChangeLog.
+
 2002-01-05 18:42  sderle
 
 	* BUGS, TODO: Updated BUGS & TODO.

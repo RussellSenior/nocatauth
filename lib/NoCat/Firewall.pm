@@ -8,7 +8,8 @@ use constant BY_IP  => 2;
 
 @ISA	    = 'NoCat';
 @REQUIRED   = qw(
-    ResetCmd PermitCmd DenyCmd InternalDevice ExternalDevice LocalNetwork AuthServiceAddr 
+    ResetCmd PermitCmd DenyCmd InternalDevice ExternalDevice
+    LocalNetwork AuthServiceAddr GatewayMode
 );
 
 # These config parameters get exported into the environment after a fork
@@ -16,7 +17,7 @@ use constant BY_IP  => 2;
 #
 my @Perform_Export = qw( 
     InternalDevice ExternalDevice LocalNetwork AuthServiceAddr DNSAddr
-    GatewayPort IncludePorts ExcludePorts
+    GatewayPort IncludePorts ExcludePorts AllowedWebHosts
 );
 
 # If /proc/net/arp is available, use it. Otherwise, fork /sbin/arp and read
@@ -38,7 +39,14 @@ sub perform {
     $mac    ||= ( $ip ? $self->fetch_mac( $ip )  : "" );
 
     my $cmd = $self->format( $self->{"\u${action}Cmd"}, { Class => $class || PUBLIC, MAC => $mac, IP => $ip } );
-    
+
+    my %env = %ENV;
+    local %ENV = %env;
+    $ENV{$_} = ( defined( $self->{$_} ) ? $self->{$_} : "" ) for @Perform_Export;
+    system $cmd;
+
+=pod
+ 
     if ( my $pid = fork ) { # Parent.
 	return;
     } elsif ( defined $pid ) { # Child.
@@ -48,6 +56,9 @@ sub perform {
     } elsif ( not defined $pid ) {
 	die "Can't fork firewall $cmd: $!";
     }
+
+=cut
+
 }
 
 sub reset {

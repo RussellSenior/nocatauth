@@ -90,8 +90,6 @@ ipchains -A input -i ${LocalNetwork} -p all -j auth
 
 ipchains -A input -i ${InternalDevice} -p all -j noauth 
 
-
-
 ipchains -A forward -s ${LocalNetwork} -d 0.0.0.0/0 -i ${ExternalDevice} -p all -j MASQ
 
 #

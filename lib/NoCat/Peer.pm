@@ -52,8 +52,15 @@ sub mac {
     return $self->{MAC};
 }
 
+sub connect_time {
+    my $self = shift;
+    $self->{ConnectTime} ||= time;
+    return $self->{ConnectTime};
+}
+
 sub timestamp {
     my ( $self, $reset ) = @_;
+    $self->connect_time; # Seed ConnectTime...
     $self->{Timestamp} = time + $self->{LoginTimeout} 
 	if defined $reset or not defined $self->{Timestamp};
     return $self->{Timestamp};
@@ -84,8 +91,12 @@ sub heartbeat {
 
 sub token {
     my ( $self, $reset ) = @_;
-    $self->{Token} = sprintf( "%x", int rand 0xFFFFFFFF )
-        if defined $reset or not defined $self->{Token};
+    my $salt
+
+    if ( defined $reset or not defined $self->{Token} ) {
+	$salt = ++substr( $self->{Token}, -8 ) if $self->{Token};
+	$self->{Token} = $self->md5_hash( $self->{Token}, $salt );
+    }
     return $self->{Token};
 }
 

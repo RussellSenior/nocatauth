@@ -1,7 +1,13 @@
+Known Bugs:
 
-Oddments that will be fixed Real Soon Now:
+* File locking in Passwd mode authentication is broken, race condition and so forth. Ho hum.
+
+Oddments:
 
 * IncludePorts and ExcludePorts are only for TCP ports.  Should there be
   "IncludeUDPPorts", "IncludeTCPPorts", etc?  For that matter, what about
   separate rules for Co-op members?
+
+* Groups are really poorly defined, and not represented by first class objects in
+  storage.
 

@@ -21,7 +21,7 @@ my $cmd = { permit => "-A", deny => "-D" } -> {lc $action}
 my $mark = { owner => 1, member => 2, public => 3 } -> {lc $class}
     or panic("FATAL: Bad class: $action!\n");
 
-system("iptables -t mangle $cmd PREROUTING -m mac --mac-source $mac -s $ip -j MARK --set-mark $cmd");
+system("iptables -t mangle $cmd PREROUTING -m mac --mac-source $mac -s $ip -j MARK --set-mark $mark");
 system("iptables -t filter $cmd FORWARD -d $ip -j ACCEPT");
 
 #

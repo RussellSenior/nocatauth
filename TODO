@@ -1,24 +1,34 @@
 === Implemented but in need of testing:
 
-* Group membership filtering on the gateway
+* Passwd-style authentication source (actually, this is potentially broken)
 
-* Passwd-style authentication source
+* ipchains support
 
 === To Do (more or less in order of importance):
 
+* Pluggable MD5 goodness (Digest::MD5 v. glibc crypt())
+
+* Logout option for Open mode
+
+* Easy 'disable public access' option in nocat.conf
+
+* Easy MAC white/blacklisting in nocat.conf
+
+* Time-based throttling example
+
 * Separate NoCat's iptables rules into a separate table to avoid interfering with other rules
+
+* CLI auth agent (for Linux users etc)
 
 * Multiple interface support
 
 * ifconfig awareness (for getting interface/network/broadcast addresses). 
   Maybe find external address by looking for a default gateway & 
-  find DNS via resolv.conf parsing.
+  find DNS via resolv.conf parsing. Also autosensing default route.
 
 * optional firewalling of internal wireless interface
 
 * automatic live firewall detection
-
-* ipchains support
 
 * Better error reporting from gateway to authservice and from authservice to user during notification.
 

@@ -1,6 +1,35 @@
 Release Notes:
 ==============
 
+02/13/2002 (v0.76)
+
+Well, this release was a bit overdue. Included:
+
+* Passive mode support: Like Captive mode, but intended to work even behind
+    NATs. Broken still, insecure, completely beta, don't use it yet, but here
+    it is.
+
+* nocat.conf has been split into gateway.conf and authserv.conf, per Sameer 
+    Verma's recommendation. The relevant file installs as $PREFIX/nocat.conf
+    depending on what you're installing.
+
+* Open mode now supports favicon.ico type icons. Thanks to Michael Codanti for 
+    the patch.
+
+* Expiration of client connections based on disappearance from the ARP cache.
+    Based on a patch from Michael Codanti.
+
+* AllowWebHosts directive now supports "friendly" websites that clients may
+    visit without first logging in. Good for linking to your community's
+    homepage from your splash page, etc. Thanks to the PersonalTelco folks
+    for the idea.
+
+* Many bug fixes and other whatnot. Try it. You'll love it.
+
+Enjoy. SDE
+
+-=-=-=-=-
+
 10/25/2001 (v0.60)
 
 Big update:

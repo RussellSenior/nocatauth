@@ -46,7 +46,9 @@ sub fetch {
     my $users = $self->source->fetch_users_by_group( $self );
     if ( $users ) {
 	%{$self->{Former}} = %{$self->{Users}} = %$users;
-    } 
+    } else {
+	$self->id( undef );
+    }
     return $self;
 }
 

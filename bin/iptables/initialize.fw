@@ -81,7 +81,9 @@ iptables -A PREROUTING -i $InternalDevice -t mangle -j MARK --set-mark 4
 iptables -t nat -A POSTROUTING -o $ExternalDevice -s $LocalNetwork -m mark --mark 1 -j MASQUERADE
 iptables -t nat -A POSTROUTING -o $ExternalDevice -s $LocalNetwork -m mark --mark 2 -j MASQUERADE
 iptables -t nat -A POSTROUTING -o $ExternalDevice -s $LocalNetwork -m mark --mark 3 -j MASQUERADE
-iptables -t nat -A POSTROUTING -o $ExternalDevice -s $LocalNetwork -m mark --mark 4 -d $AuthServiceAddr -j MASQUERADE
+if [ "$GatewayMode" != "Open" ]; then
+    iptables -t nat -A POSTROUTING -o $ExternalDevice -s $LocalNetwork -m mark --mark 4 -d $AuthServiceAddr -j MASQUERADE
+fi
 
 #
 # Redirect outbound non-auth web traffic to the local gateway process
@@ -98,6 +100,13 @@ if [ -z $DNSAddr ]; then
   iptables -t nat -A PREROUTING -p tcp -i $InternalDevice -d $LocalNetwork --dport 53 -j ACCEPT
   iptables -t nat -A PREROUTING -p udp -i $InternalDevice -d $LocalNetwork --dport 53 -j ACCEPT
 else 
+  #
+  # Accept forward and back traffic to/from DNSAddr
+  #
+  iptables -t filter -A FORWARD -i $InternalDevice -o $ExternalDevice -d $DNSAddr -p tcp --dport 53 -j ACCEPT
+  iptables -t filter -A FORWARD -i $InternalDevice -o $ExternalDevice -d $DNSAddr -p udp --dport 53 -j ACCEPT
+  iptables -t filter -A FORWARD -i $ExternalDevice -o $InternalDevice -s $DNSAddr -j ACCEPT
+
   iptables -t nat -A POSTROUTING -p tcp -o $ExternalDevice -d $DNSAddr --dport 53 -j MASQUERADE
   iptables -t nat -A POSTROUTING -p udp -o $ExternalDevice -d $DNSAddr --dport 53 -j MASQUERADE
 fi
@@ -164,6 +173,23 @@ iptables -t nat -A PREROUTING -i $InternalDevice -j ACCEPT
 # Enable Logging
 #
 #iptables -t nat -I PREROUTING -m mark --mark 4 -j LOG --log-level debug --log-ip-options
+
+#
+# Allow unauthenticated web access to all in $AllowedWebHosts, if defined
+#
+if [ -n "$AllowedWebHosts" ]; then
+  for host in $AllowedWebHosts; do
+    iptables -t nat -I PREROUTING -p tcp --dport 80 -d $host -j ACCEPT
+    iptables -t nat -I PREROUTING -p tcp --dport 443 -d $host -j ACCEPT
+
+    iptables -t filter -A FORWARD -i $InternalDevice -o $ExternalDevice -d $host -p tcp --dport 80 -j ACCEPT
+    iptables -t filter -A FORWARD -i $InternalDevice -o $ExternalDevice -d $host -p tcp --dport 443 -j ACCEPT
+    iptables -t filter -A FORWARD -i $ExternalDevice -o $InternalDevice -s $host -j ACCEPT
+
+    iptables -t nat -A POSTROUTING -p tcp -o $ExternalDevice -d $host --dport 80 -j MASQUERADE
+    iptables -t nat -A POSTROUTING -p tcp -o $ExternalDevice -d $host --dport 443 -j MASQUERADE
+  done
+fi                                                                             
 
 #
 # Call the bandwidth throttle rules.

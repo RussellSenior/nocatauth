@@ -15,20 +15,60 @@ sub handle {
     my ( $self, $peer )	= @_;
     my $request		= $self->read_http_request( $peer ) or return;
 
-    # If this is a post request, it might be the auth service contacting us.
-    # Otherwise, it must be a user, who needs to be sent to the auth service.
-    #
-    if ( $request->{Method} eq 'POST' ) {
-	# my $own_addr = $socket->sockhost || "";
-	# if ( $target_host eq $own_addr and $uri eq LOGOUT ) {
+    my $me = $peer->socket->sockhost;
+    $me .= ":" . $peer->socket->sockport if $request->{Host} =~ /:/o;
+
+    # If this request is intended for us...
+    if ( $request->{Host} eq $me ) {
+	# Either it's a user asking to be logged out...
 	if ( $request->{URI} eq LOGOUT ) {
 	    $self->logout( $peer );
+
+	# Or it's a user with an authentication ticket.
+	# Re-capture them if we can't validate their ticket.
 	} else {
-	    $self->verify( $peer, $request->{URI} );
+	    $self->verify( $peer, $request->{URI} )
+		or $self->capture( $peer, $request->{URL} );
+
 	}
+
+    # Otherwise, it's a user who needs to be captured and
+    # sent to the auth service. 
     } else {
 	$self->capture( $peer, $request->{URL} );
     }
+}
+
+sub punch_ticket {
+    my ( $self, $msg, $mac ) = @_;
+    my %auth	= $msg->parse;
+    my $client	= $self->{Peer}{$mac} 
+	or return $self->log( 2, "Unknown MAC notify from $mac!" );
+
+    # TODO: better error reporting back to the auth service.
+    return $self->log( 2, "Bad user/MAC match from $mac: $auth{User} != " . $client->user )
+	if $client->user and $client->user ne $auth{User};
+    return $self->log( 2, "Bad MAC match from $mac: $auth{Mac} != $mac" )
+	if $mac ne $auth{Mac};
+    return $self->log( 2, "Bad token match from $mac: $auth{Token} != " . $client->token )
+	if $client->token ne $auth{Token};
+
+    # Identify the user and class.
+    $client->user( $auth{User} ); 
+    $client->groups( $auth{Member} );
+
+    # Perform the requested action.
+    if ( $auth{Action} eq PERMIT ) {
+	$self->permit( $client );
+    } elsif ( $auth{Action} eq DENY ) {
+	$self->deny( $client );
+    }
+
+    # Store the new token away for when the peer renews its login.
+    $client->token(1);
+    $self->log( 9, "Available MACs: @{[ keys %{$self->{Peer}} ]}" );
+
+    return \%auth;
 }
 
 sub verify {
@@ -42,42 +82,20 @@ sub verify {
 
     if ( my $client = $self->{Peer}{$mac} ) {
 	my $msg = $self->message( $content );
-
-	return $self->log( 2, "Invalid auth message!" ) unless $msg->verify;
+	
+	$msg->verify or return $self->log( 2, "Invalid auth message!" ); 
 	$self->log( 9, "Got auth msg " . $msg->extract );
 
-	my %auth = $msg->parse;
-
-	# TODO: better error reporting back to the auth service.
-	return $self->log( 2, "Bad user/MAC match: $auth{User} != " . $client->user )
-	    if $client->user and $client->user ne $auth{User};
-	return $self->log( 2, "Bad MAC match!" )	if $mac ne $auth{Mac};
-	return $self->log( 2, "Bad token match!" )	if $client->token ne $auth{Token};
-
-	# Identify the user and class.
-	$client->user( $auth{User} ); 
-	$client->groups( $auth{Member} );
-
-	# Perform the requested action.
-	if ( $auth{Action} eq PERMIT ) {
-	    $self->permit( $client );
-        } elsif ( $auth{Action} eq DENY ) {
-	    $self->deny( $client );
+	if ($self->punch_ticket( $msg, $mac )) {
+	    # Tell the auth service we got the message.
+	    $msg = $self->deparse( 
+		User    => $client->user, 
+		Token   => $client->token, 
+		Timeout => $self->{LoginTimeout} 
+	    );
+	    $self->log( 9, "Responding with:\n$msg" );
+	    print $socket "HTTP/1.1 200 OK\n\n$msg";
 	}
-
-	# Store the new token away for when the peer renews its login.
-	$client->token(1);
-	$self->log( 9, "Available MACs: @{[ keys %{$self->{Peer}} ]}" );
-	
-	# Tell the auth service we got the message.
-	$msg = $self->deparse( 
-	    User    => $client->user, 
-	    Token   => $client->token, 
-	    Timeout => $self->{LoginTimeout} 
-	);
-	$self->log( 9, "Responding with:\n$msg" );
-	print $socket "HTTP/1.1 200 OK\n\n$msg";
-
     } else {
 	$self->log( 2, "Non-existent auth request!" );
 	$self->log( 9, "Available MACs: @{[ keys %{$self->{Peer}} ]}" );
@@ -96,6 +114,11 @@ sub logout {
     $self->deny( $peer );
 
     $self->redirect( $peer => $url );    
+}
+
+sub capture_params {
+    my ( $self, $peer, $request ) = @_;
+    return { mac => $peer->mac, token => $peer->token, redirect => $request };
 }
 
 sub capture {
@@ -117,10 +140,9 @@ sub capture {
     }
 
     # Smile for the GET URL.
-    ( $token, $mac, $request ) = $self->url_encode( $peer->token, $mac, $request );
-
-    my $url = $self->format( $self->{AuthServiceURL} );
-    $self->redirect( $peer, "$url?token=$token&mac=$mac&redirect=$request" );
+    my $args = $self->capture_params( $peer, $request );
+    my $url = $self->url( AuthServiceURL => $args );
+    $self->redirect( $peer, $url );
 }
 
 1;

@@ -1,6 +1,6 @@
-NoCat Authentication v.0.75
+NoCat Authentication v.0.76
 ===========================
-(c) 2001 Schuyler Erle & Robert Flickenger.
+(c) 2001,2002 Schuyler Erle & Robert Flickenger.
 
 Credits
 =======
@@ -22,12 +22,12 @@ well-wishing):
 * Nate Boblitt
 * Rich Gibson
 * Terry Schmidt
+* Michael Codanti
 
 This code also includes contributions from:
 
 * Michael Bailey (LocalGateway patch, dynamic FORWARD filter, and some
   filesystem restructuring)
-
 * Matt Westervelt (ipchains code + testing)
 * Steve Beattie (original ipchains support)
 * Pasi Lahtinen (fix for RedHat 7.1 ipchains/iptables strangeness)

@@ -11,7 +11,8 @@ my %MIME = (
     jpg	    => "image/jpeg",
     jpeg    => "image/jpeg",
     gif	    => "image/gif",
-    png	    => "image/png"
+    png	    => "image/png",
+    ico     => "image/x-icon"
 );
 
 sub handle {
@@ -27,12 +28,15 @@ sub handle {
     if ( $request->{Method} eq 'POST' ) {
 	$self->verify ( $peer => $request );
     } elsif ( $request->{Host} eq $peer->socket->sockhost ) {
-	if ( $request->{URI} =~ /^\/\?redirect=([^&]+)/o ) {
-	    $request->{URL} = $self->url_decode( $1 );
-	    $self->splash( $peer => $request );
-	} else {
-	    $self->serve( $peer => $request );
-	}
+        if ( $request->{URI} eq "/" ) {
+            $request->{URL} = $self->{HomePage};
+            $self->capture( $peer => $request );
+        } elsif ( $request->{URI} =~ /^\/\?redirect=([^&]+)/o ) {
+            $request->{URL} = $self->url_decode( $1 );
+            $self->splash( $peer => $request );
+        } else {
+            $self->serve( $peer => $request );
+        }
     } else {
 	$self->capture( $peer => $request ); 
     }
@@ -118,7 +122,6 @@ sub verify {
     if ( $url ) {
 	$self->log( 5, "Opening portal for " . $socket->peerhost . " to $url" );
 	$self->permit( $peer => PUBLIC );
-	sleep 1; # sleep until we're done calling iptables
 	$self->redirect( $peer => $url ); 
     } else {
 	$self->log( 5, "POST failed from " . $socket->peerhost );

@@ -23,14 +23,14 @@ my $cmd = { permit => "-I", deny => "-D" }  -> {lc $action}
 # my $mark = { owner => "1", member => "2", public => "3" }  -> {lc $class}
 #    or panic("FATAL: Bad class: $class!\n");
 
-if ($action eq "-I") {
+if ($cmd eq "-I") {
   print "ipchains $cmd noauth -i $ENV{InternalDevice} -s $ip -j RETURN\n";
   exec("ipchains $cmd noauth -i $ENV{InternalDevice} -s $ip -j RETURN");
 } else {
   open (CHAIN, "ipchains -nL auth --line-numbers |") || panic("FATAL: reading ipchains rules: $!");
   while (<CHAIN>) {
     my ( $index, $target, $proto, $opt, $source, $dest ) = split /\s+/;
-    exec("ipchains $action auth $index") if $source eq $ip or $dest eq $ip;
+    exec("ipchains $cmd auth $index") if $source eq $ip or $dest eq $ip;
   }
 }
 

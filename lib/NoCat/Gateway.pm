@@ -1,7 +1,7 @@
 package NoCat::Gateway;
 
 use IO::Socket;
-use NoCat qw( PERMIT DENY PUBLIC MEMBER OWNER ANY );
+use NoCat qw( PERMIT DENY PUBLIC MEMBER OWNER LOGIN ANY );
 use vars qw( @ISA @REQUIRED @EXPORT_OK *FILE );
 use strict;
 
@@ -70,6 +70,10 @@ sub run {
     return unless $self->bind_socket;
 
     local $SIG{PIPE} = "IGNORE"; 
+    local $SIG{CHLD} = \&reaper;
+
+    # Setup for inactive sessions checking
+    my $inactive = time + $self->{IdleTimeout}; # Only check every 5 minutes
 
     # Handle connections as they come in.
     #
@@ -78,7 +82,13 @@ sub run {
 	$self->poll_socket;
 
 	# See if any logins have reached their timeout period.
-	$self->check_peers;
+	$self->check_expired;
+
+        # See if any sessions have been inactive too long
+        if ( $self->{MaxMissedARP} and time >= $inactive ) {
+            $self->check_inactive;
+            $inactive += $self->{IdleTimeout}; 
+        }
 
     } # loop forever
 }
@@ -99,12 +109,35 @@ sub poll_socket {
     }
 }
 
-sub check_peers { 
+sub check_expired { 
     my $self = shift;
     while ( my ($token, $peer) = each %{$self->{Peer}} ) {
 	if ( $peer->expired ) {
 	    $self->log( 8, "Expiring connection from ", $peer->ip, "." );
 	    $self->deny( $peer );
+	}
+    }
+}
+
+# check_inactive uses the ARP table to determine when a session has gone inactive
+# It assumes that the MAC addresses disappears from the table before the IP address
+# and that that indicates inactivity.  They are typically given one grace miss.
+
+sub check_inactive { 
+    my $self = shift;
+
+    # Only fetch the table once to save some ticks
+    my $arp = $self->firewall->fetch_arp_table( $self->firewall->BY_MAC );
+
+    while ( my ($token, $peer) = each %{$self->{Peer}} ) {
+        if ( defined $arp->{$peer->mac} ) {
+            $peer->{MissedARP} = 0;
+        } else {
+	    # How many missed ARPs should it take?
+	    if ( ++$peer->{MissedARP} >= $self->{MaxMissedARP} ) { 
+	        $self->log( 8, "Expiring inactive connection from ", $peer->ip, "." );
+	        $self->deny( $peer );
+            }
 	}
     }
 }
@@ -143,6 +176,12 @@ sub handle {
 sub permit {
     my ( $self, $peer, $class ) = @_;
 
+    # Stash the peer object for future use.
+    #
+    $self->{Peer}{$peer->mac} = $peer;
+
+    # Update its expiration timestamp.
+    #
     $peer->timestamp(1);
 
     # Get *our* notion of what the peer's service class should be.
@@ -190,9 +229,10 @@ sub deny {
     return $self->log( 7, "Denying peer $mac without prior permit." )
 	if not $class or $class eq DENY;
 
-    $self->log( 5, "User ", ( $peer->user || $peer->ip ), " denied service." );
+    $self->log( 5, "User ", ( $peer->user || $peer->ip ), " denied service. Connected since " ,
+	scalar localtime $peer->connect_time, "." ); 
 
-    $self->firewall->deny( $class, $mac ); 
+    $self->firewall->deny( $class, $mac, $peer->ip ); 
 
     $peer->status( DENY );
 }
@@ -274,6 +314,18 @@ You should be redirected now.  If not, click <a href="$url">here.</a>
 });
 
     $peer->socket->close;
+}
+
+sub no_response {
+    my ( $self, $peer ) = @_;
+    $peer->socket->print(
+	"HTTP/1.1 304 No Reponse\r\n\r\n" );
+    $peer->socket->close;
+}
+
+sub reaper {
+    1 until ( wait == -1 );
+    $SIG{CHLD} = \&reaper; # on the off-chance we're running a real SysV system;
 }
 
 1

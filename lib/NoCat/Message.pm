@@ -16,32 +16,50 @@ sub text {
     $self->{Msg}
 }
 
-sub sign {
-    my ( $self, $txt ) = @_;
-    my $cmd;
+sub sign { 
+    my $self = shift; 
+    $self->pgp( Sign => @_ ) 
+}
+
+sub encode { 
+    my $self = shift; 
+    $self->pgp( Encode => @_ )
+}
+
+sub decode { 
+    my $self = shift; 
+    $self->pgp( Decode => @_ ) 
+}
+
+my %Cmd_Map = (
+    Encode => "--sign --armor",
+    Decode => "--decrypt",
+    Sign   => "--clearsign"
+);
+
+sub pgp {
+    my ( $self, $cmd, $txt ) = @_;
 
     return $self->text if $self->{Signed} and not defined $txt;
     $txt = $self->text( $txt );
 
-    if ( $self->{MessageSign} ) {
-	$cmd = $self->SUPER::format( $self->{MessageSign} );
+    if ( my $directive = $self->{"Message$cmd"} ) {
+	$cmd = $self->SUPER::format( $directive );
 
-    } elsif ( $self->{GpgvPath} and $self->{PGPKeyPath} ) {
-	$cmd = '$GpgPath --clearsign --homedir=$PGPKeyPath -o-';
+    } elsif ( $self->{GpgPath} and $self->{PGPKeyPath} and $Cmd_Map{$cmd} ) {
+	$cmd = "$self->{GpgPath} $Cmd_Map{$cmd} --homedir=$self->{PGPKeyPath} " .
+	    "--keyring trustedkeys.gpg -o-";
 	$cmd .= " 2>/dev/null" if $self->{Verbosity} < 7;
 
     } else {
-	die "Can't find required MessageSign directive";
+	die "Can't find required Message$cmd directive";
     }
-
-    $cmd = $self->SUPER::format( $cmd );
 
     open2( \*IN, \*OUT, $cmd ) or die "$cmd: $!";
     print OUT $txt;
     close OUT;
 
-    local $/ = undef;
-    $txt = <IN>;
+    $txt = do { local $/ = undef; <IN> };
     close IN;
 
     $self->{Signed}++;
@@ -87,7 +105,8 @@ sub extract {
     my $self = shift;
     my $txt = $self->text;
 
-    if ( $txt =~ /-----BEGIN PGP SIGNED MESSAGE-----.*?\n\n(.*)-----BEGIN PGP SIGNATURE-----/os ) {
+    if ( $txt =~
+	/-+BEGIN PGP [A-Z ]+-+.*?\n\n(.*?\n)-+[A-Z]+ PGP [A-Z ]+-+/os ) {
 	return $1;
     } else {
 	return $txt;
