@@ -1,10 +1,65 @@
-NoCat Authentication v0.80
+NoCat Authentication v0.81
 ===========================
 (c) 2001, 2002 Schuyler Erle & Robert Flickenger.
 
+============
+Installation
+============
+*** Read the INSTALL to get a quick jumpstart on building a gateway.  
+  Read doc/* (particularly Introduction.txt, AuthService.txt, and
+  SameMachine.txt) for more details on setting up your own
+  authservice. ***
+
+*** REPEAT: The documentation is in INSTALL and in doc/*! READ IT! ***
+
+*** VERY IMPORTANT ***
+
+If you're upgrading from 0.80, read this!
+
+Upgrading an Authentication Service from 0.80 (DBI driver only)
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+If you currently run a version 0.80 authserv using the DBI driver, then
+you will need to run "perl upgrade-0.80-db.pl" after running "make
+authserv". This script will properly encrypt the passwords in your
+database, correcting a known bug in 0.80. You will need to edit this
+script to point to a different library directory if you have installed
+your authserv to  somewhere other than /usr/local/nocat. DO NOT RUN THIS
+SCRIPT MORE THAN ONCE or it will probably frag your user's passwords.
+Make sure you have your database backed up first, okay?
+
+Upgrading an Authentication Service from versions prior to 0.80
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+"make authserv" does not by default overwrite your HTML template forms.
+As a result, you will need to make manual changes to the following files
+in /usr/local/nocat/htdocs to correct a browser incompatibility that
+prevented some users from logging into a NoCat node with IE 5 or 6:
+
+    login_ok.html
+    register_ok.html
+    renew_pasv.html
+    renew.html
+
+The specific change that needs to be made is that the string 
+'<meta http-equiv="Refresh" content="$refresh" />' (minus the single
+quotes) needs to be inserted into each of these files, immediately prior
+to '</head>'. You may use any amount of whitespace before or after the
+new <meta> tag.
+
+Alternately, you could try running:
+
+    perl -pi -e \
+      's#(</head>)#<meta http-equiv="Refresh" content="\$redirect" />$1#os' \
+      login_ok.html register_ok.html renew.html renew_pasv.html
+
+... from /usr/local/nocat/htdocs. But be sure to back up your htdocs/
+directory before trying this.
+
+Sorry for the inconvenience!
+
+
+=======
 Credits
 =======
-
 Core dev team:
 
 * Schuyler Erle
@@ -25,8 +80,9 @@ Other Cool Cats (for their support, testing, code,
 * Michael Codanti
 * Craig Slimmer
 
-This code also includes contributions from:
+This code also includes contributions from (in no particular order):
 
+* Scott Lemon (LDAP support)
 * Michael Bailey (LocalGateway patch, dynamic FORWARD filter, and some
   filesystem restructuring)
 * Matt Westervelt (ipchains code + testing)
@@ -36,27 +92,28 @@ This code also includes contributions from:
 * Michael Codanti (ARP expiration and a bunch of other stuff)
 * Don Park (gateway status page)
 * Richard Lotz (OpenBSD packetfilter support)
+* DJ Gregor (OpenBSD packetfilter support)
 * Nathan Zorn (LDAP support)
 * Jan-Patrick Perisse (RADIUS support)
+* Matt William Barclay (Syslog support, status support in Captive/Passive mode)
 
 ...and, of course, a slew of other people who provide ideas, rants, flames,
 public demos, and even the occasional patch.
 
+==========
+Assistance
+==========
+For more assistance, and to contribute, join the NoCat mailing list, or
+find us on IRC at irc.openprojects.net #wireless.  See http://nocat.net
+for more details.
+
+==========
+Desiderata
+==========
 We hope NoCat Auth helps you provide unlimited bandwidth
 everywhere for free.
 
 You can always get the most current release at:
 
 http://nocat.net/download/NoCatAuth/
-
-
-Installation
-============
-
-*** Read the INSTALL to get a quick jumpstart.  Read doc/* (particularly
-Introduction.txt and AuthService.txt) for more details. ***
-
-For more assistance, and to contribute, join the NoCat mailing list, or
-find us on IRC at irc.openprojects.net #wireless.  See http://nocat.net
-for more details.
 

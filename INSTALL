@@ -1,7 +1,7 @@
 ###
 ## NoCatAuth installation guide
 ##
-Last updated: 12/30/01 
+Last updated: 22 May 2002
 
 This is the quick-and-dirty guide to getting a wireless gateway running with
 the NoCatAuth system.  If you simply want to "run a NoCat node", this should
@@ -10,6 +10,9 @@ get you going.
 For detailed instructions on how to set up your own Authentication Service
 (and a good overall view of how this whole thing works), check out
 Introduction.txt and AuthService.txt in the doc/ directory.
+
+We don't recommend running the gateway and the authservice on the same machine,
+but if you're dead-set on doing it, be sure to read doc/SameMachine.txt *first*.
 
 ###
 ## Installing a Gateway
@@ -129,11 +132,11 @@ You'll see a message to the effect of:
 If it doesn't start cleanly, read on.
 
 The portal needs to know where to find (a) its perl libraries, and (b) its
-nocat.conf configuration file. NoCatAuth tries to figure out these values
-on its own. If you installed to /usr/local/nocat, you should have no
+nocat.conf configuration file. NoCatAuth tries very hard to figure out these 
+values on its own. If you installed to /usr/local/nocat, you should have no
 problems.
 
-Otherwise, you may need to add the following variables to the
+Otherwise, you *may* need to add the following variables to the
 shell environment before running the gateway script:
 
     $ export PERL5LIB=/path/to/nocat/lib:$PERL5LIB
@@ -159,7 +162,6 @@ like this:
     # ln -s /etc/rc.d/init.d/nocat.rc /etc/rc.d/rc3.d/S99nocat
 
 Congratulations.  You're now running a gateway.
-
 
 ###
 ## Important Notes for the Gateway

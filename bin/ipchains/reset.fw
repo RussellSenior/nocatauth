@@ -1,12 +1,12 @@
-#/bin/sh
+#!/bin/sh
+##
 #
-# Flush all chains
+# reset.fw: reset the default firewall rules
 #
-ipchains -F
-#
-# Delete any user defined chains (which we do)
-#
-ipchains -X
-#
-# Fini
-#
+##
+
+PATH=/sbin:/usr/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/local/bin
+export PATH
+
+ipchains -F NC_NAT
+ipchains -F NC_Auth

@@ -1,7 +1,7 @@
 package NoCat::Source::Passwd;
 
 use NoCat::Source;
-use Fcntl qw( :flock :seek );
+use Fcntl qw( :flock );
 use Digest::MD5 qw( md5_base64 );
 use strict;
 use vars qw( @ISA @REQUIRED *FILE );
@@ -16,7 +16,7 @@ my @GroupFiles = qw( GroupUserFile GroupAdminFile );
 sub store {
     my ( $self, $fh, $data ) = @_;
     truncate( $fh, 0 );
-    seek( $fh, 0, SEEK_SET );
+    seek( $fh, 0, 0 );
 
     while (my ($key, $val) = each %$data) {
         print $fh "$key:";
@@ -33,10 +33,11 @@ sub file {
     my ( $self, $file, $writeable ) = @_;
     my $fh       = do { \local *FILE };      
     my $lock     = $writeable ? LOCK_EX : LOCK_SH;
+    my $mode     = $writeable ? "+<" : "<";
     my $timeout  = time + ( $self->{LockTimeout} || 2 );
     my $result;
 
-    open( $fh, "+<$self->{$file}" ) or die "Can't load $file ($self->{$file}): $!\n";
+    open( $fh, $mode . $self->{$file} ) or die "Can't load $file ($self->{$file}): $!\n";
     1 until $result = flock( $fh, $lock | LOCK_NB ) or time > $timeout;
 
     die "Can't get exclusive lock on $file ($self->{$file}): $!\n" unless $result;

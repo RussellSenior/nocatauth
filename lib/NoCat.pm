@@ -1,14 +1,15 @@
 package NoCat;
 
-use constant PERMIT => "Permit";
-use constant DENY   => "Deny";
-use constant PUBLIC => "Public";
-use constant MEMBER => "Member";
-use constant OWNER  => "Owner";
-use constant LOGOUT => "/logout";
-use constant LOGIN  => "/login";
-use constant ANY    => "Any";
-use constant ANONYMOUS => "UNKNOWN";
+use constant VERSION	=> "0.80.20020613";
+use constant PERMIT	=> "Permit";
+use constant DENY	=> "Deny";
+use constant PUBLIC	=> "Public";
+use constant MEMBER	=> "Member";
+use constant OWNER	=> "Owner";
+use constant LOGOUT	=> "/logout";
+use constant LOGIN	=> "/login";
+use constant ANY	=> "Any";
+use constant ANONYMOUS	=> "UNKNOWN";
 
 use FindBin;
 use Exporter;
@@ -21,7 +22,7 @@ use strict;
 
 my %Defaults = (
     ### Gateway server networking values.
-    GatewayMode	    => "Captive",
+    GatewayMode	    => "Passive",
     GatewayPort	    => 5280, 
     PollInterval    => 10,
     ListenQueue	    => 10,
@@ -29,6 +30,10 @@ my %Defaults = (
     IdleTimeout     => 300,
     MaxMissedARP    => 2,
     ForkOff	    => 1,
+    ResetCmd	    => "initialize.fw",
+    PermitCmd	    => 'access.fw permit $MAC $IP $Class',
+    DenyCmd	    => 'access.fw deny $MAC $IP $Class',
+    InitCmd	    => "reset.fw",
 
     ### No. of seconds before logins/renewals expire.
     LoginTimeout    => 300,
@@ -50,7 +55,16 @@ my %Defaults = (
     DocumentRoot    => "$FindBin::Bin/../htdocs",
 
     ### Default log level.
-    Verbosity	    => 5
+    Verbosity	    => 5,
+    LogFacility     => "internal",
+    SyslogSocket    => "unix",
+    SyslogOptions   => "pid,cons,nowait",
+    SyslogPriority  => "info",
+    SyslogFacility  => "user",
+    SyslogIdent     => "NoCat",
+
+    ### Stamp the version (for use in templates)
+    Version	    => VERSION
 );
 
 BEGIN {
@@ -173,22 +187,44 @@ sub check_config {
     return not @missing;
 }
 
+
 sub log {
-    my ( $self, $level, @msg ) = @_;
+     my ( $self, $level, @msg ) = @_;
 
-    # Bag if this message is too verbose.
-    #
-    if ( not ref $self  or $level <= $self->{Verbosity} ) {
-	# Get relevant time/date data.
-	my ( $s, $m, $h, $d, $mo, $yr ) = (localtime())[0..5];
-	$yr += 1900; $mo++; chomp @msg;
-
-	# Log message takes form: [YYYY-MM-DD HH-MM-SS] *Your message here*
-	print STDERR (sprintf( "[%04d-%02d-%02d %02d:%02d:%02d] %s\n",
-	    $yr, $mo, $d, $h, $m, $s, "@msg" ));
-    }
-    return;
+     # Bag if this message is too verbose.
+     #
+     if ( not ref $self or $level <= $self->{Verbosity} ) {
+         if(ref $self and $self->{LogFacility} eq "syslog") {
+             $self->syslog_log(@msg);
+         } else {
+             $self->internal_log(@msg);
+         }
+     }
 }
+
+sub syslog_log {
+     require Sys::Syslog;
+
+     my ( $self, @msg ) = @_;
+
+     setlogsock($self->{SyslogSocket});
+     openlog($self->{SyslogIdent}, $self->{SyslogOptions}, $self->{SyslogFacility});
+     syslog($self->{SyslogPriority}, "%s", "@msg");
+     closelog();
+}
+
+ sub internal_log {
+     my ( $self, @msg ) = @_;
+
+     # Get relevant time/date data.
+     my ( $s, $m, $h, $d, $mo, $yr ) = (localtime())[0..5];
+     $yr += 1900; $mo++; chomp @msg;
+
+     # Log message takes form: [YYYY-MM-DD HH-MM-SS] *Your message here*
+     print STDERR (sprintf( "[%04d-%02d-%02d %02d:%02d:%02d] %s\n",
+                            $yr, $mo, $d, $h, $m, $s, "@msg" ));
+     return;
+ }
 
 sub url_encode {
     my ( $self, @args ) = @_;

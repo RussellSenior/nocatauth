@@ -289,7 +289,7 @@ sub success {
     my $redirect = $vars{redirect} || $self->{HomePage};
 
     # Add a refresh time of five seconds... unless one is already set.
-    $redirect = "5; URL=$redirect" unless $redirect =~ /^\d+;/o;
+    $vars{redirect} = $redirect = "5; URL=$redirect" unless $redirect =~ /^\d+;/o;
 
     push @headers, -Refresh => $redirect;
     # push @headers, -Cookie => $self->{Cookie} if $self->{Cookie};

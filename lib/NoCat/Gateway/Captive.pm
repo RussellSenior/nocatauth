@@ -15,14 +15,17 @@ sub handle {
     my ( $self, $peer )	= @_;
     my $request		= $self->read_http_request( $peer ) or return;
 
-    my $me = $peer->gateway_ip;
-    $me .= ":" . $peer->socket->sockport if $request->{Host} =~ /:/o;
+    my $host = $request->{Host};
+    my $me   = $peer->gateway_ip;
+    $me .= ":" . $peer->socket->sockport if $host =~ /:/o;
 
     # If this request is intended for us...
-    if ( $request->{Host} eq $me ) {
+    if ( $host eq $me or $host =~ /:$self->{GatewayPort}/ ) {
 	# Either it's a user asking to be logged out...
 	if ( $request->{URI} eq LOGOUT ) {
 	    $self->logout( $peer );
+	} elsif ($request->{URI} eq "/status") {
+            $self->status( $peer => $request );
 
 	# Or it's a user with an authentication ticket.
 	# Re-capture them if we can't validate their ticket.

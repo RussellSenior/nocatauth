@@ -22,8 +22,8 @@ my @Perform_Export = qw(
 );
 
 # If /proc/net/arp is available, use it. Otherwise, fork /sbin/arp and read
-# its output to get ARP cache data. Turns out '/sbin/arp -an' gives the same output
-# on both Linux and *BSD. (Thank goodness.)
+# its output to get ARP cache data. Turns out '/sbin/arp -an' gives the same
+# output on both Linux and *BSD. (Thank goodness.)
 #
 my $Arp_Cache = ( -r "/proc/net/arp" ? "/proc/net/arp" : "arp -an|" );
 my $Ifconfig  = "ifconfig -a";
@@ -50,6 +50,11 @@ sub new {
 
 	my $extern = $self->{ExternalDevice} ||= $default;
 	my @intern = grep( $_ ne $extern, keys %iface );
+
+	$self->log( 2, "Warning: Autoconfiguring more than one InternalDevice.",
+	    "You might want to set InternalDevice manually in your nocat.conf." )
+	    if not $self->{InternalDevice} and @intern > 1;
+
 	$self->{InternalDevice} ||= join(" ", @intern );
 	$self->{LocalNetwork}   ||= @iface{ split /\s+/, $self->{InternalDevice} };
 
@@ -64,8 +69,13 @@ sub perform {
     my ( $self, $action, $class, $mac, $ip ) = @_;
 
     $class  ||= PUBLIC;
-    $ip	    ||= ( $mac ? $self->fetch_ip( $mac ) : "" );
-    $mac    ||= ( $ip ? $self->fetch_mac( $ip )  : "" );
+
+    # This was definitely trying to be too helpful. 
+    # When users change IPs, sometimes the ARP cache is slow on the uptake.
+    # We really need both pieces of information to alter the firewall.
+    #
+    # $ip   ||= ( $mac ? $self->fetch_ip( $mac ) : "" );
+    # $mac  ||= ( $ip ? $self->fetch_mac( $ip )  : "" );
 
     my $cmd = $self->format( $self->{"\u${action}Cmd"}, { Class => $class || PUBLIC, MAC => $mac, IP => $ip } );
 
@@ -75,9 +85,14 @@ sub perform {
     system $cmd;
 }
 
-sub reset {
+sub initialize {
     my $self = shift;
     $self->perform( Reset => @_ );
+}
+
+sub reset {
+    my $self = shift;
+    $self->perform( Init => @_ );
 }
 
 sub permit {
@@ -109,20 +124,42 @@ sub arp_table {
 	}
     }
 
+    close(ARP);
+
     return \%table;
 }
 
 sub fetch_mac {
     my ( $self, $ip ) = @_;
+
+    # $self->log(0, "Fetching MAC by IP $ip" );
     return unless $ip;
     return $self->arp_table( BY_IP )->{$ip};
 }
 
 sub fetch_ip {
     my ( $self, $hw ) = @_;
-    require Carp;
-    Carp::cluck "Undefined mac address" unless $hw;
+
+    unless ( $hw ) {
+	require Carp;
+	Carp::cluck "Undefined mac address";
+    }
+
+    # $self->log(0, "Fetching IP by MAC $hw" );
     return $self->arp_table( BY_MAC )->{$hw};
+}
+
+sub compute_netmask {
+    my ($self, $addr, $mask) = @_;
+
+    # Split each IP into octets, then "AND" each octet together and
+    # rejoin.
+    #
+    my @ip = split( /\./, $addr );
+    my @mask = split( /\./, $mask );
+    $ip[$_] = ($ip[$_] + 0) & ($mask[$_] + 0) for (0..$#ip);
+    $addr = join(".", @ip);
+    return "$addr/$mask";
 }
 
 sub interfaces {
@@ -142,10 +179,12 @@ sub interfaces {
 	# Get the network mask for the current interface.
 	if ( /addr:$IP_Match.*?mask:$IP_Match/io ) {
 	    # Linux style ifconfig.
-	    $network = "$1/$2";
+	    $network = $self->compute_netmask( $1, $2 );
 	} elsif ( /inet $IP_Match.*?mask 0x([a-f0-9]{8})/io ) {
 	    # BSD style ifconfig.
-	    $network = "$1/" . join(".", map( hex $_, split( /(..)/, $2 ) ));
+	    my ($addr, $net) = ($1, $2);
+	    $net = join(".", map( hex $_, $net =~ /(..)/gs )); 
+	    $network = $self->compute_netmask( $addr, $net );
 	}
 
 	# Ignore interfaces that are loopback devices or aren't up.

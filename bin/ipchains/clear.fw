@@ -1,9 +1,11 @@
 #!/bin/sh
 ##
-# dump.fw: show the status of all chains.
+# reset.fw: you guessed it.
 ##
 
 PATH=/sbin:/usr/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/local/bin
 export PATH
 
-ipchains -n -L
+ipchains -F input
+ipchains -F forward
+

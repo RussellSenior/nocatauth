@@ -1,12 +1,8 @@
 === On Fire
 
-* Password shows up in logs & browser (view source on popup)
-  >> single use secret key crypt?  Is first submission a post?
-
-* automatic live firewall detection
-
 * User mgmt tools, including admin interface & "Forgot my password" mailer.
 
+* ipchains support is b0rked
 
 === Implemented but in need of testing:
 
@@ -14,49 +10,44 @@
   >> This will solve "optional firewalling of internal wireless interface"
      issues: do it yourself in your own table!
 
-* Passwd-style authentication source (actually, this is potentially broken)
-
-* ipchains support
-
 * "Connect-Forward" gateway mode for firewalled gateways (require HTTPS on g/w)
   >> Passive mode supercedes this.  Does Passive mode work?
 
-* Auto-configuration of interfaces
-
-* Pluggable MD5 goodness (Digest::MD5 v. glibc crypt())
-
-* Multiple interface support
-
-* ifconfig awareness (for getting interface/network/broadcast addresses). 
-  Maybe find external address by looking for a default gateway & 
-  find DNS via resolv.conf parsing. Also autosensing default route.
-
-* LDAP & Radius patches to roll into the nightly
-
-
 === To Do (more or less in order of importance):
+
+* Document installing authserv/gateway on same machine
+
+* Easy 'disable public access' option in nocat.conf
+
+* Easy MAC white/blacklisting in nocat.conf
 
 * Logout option for Open mode
   >> Link on community site pointing to gw:/logout ?
 
 * NoCatSplash
 
+* PAM support
+
+* Group managment tools. *** bin/admintool is a fully functional commandline
+  interface.  Use it!
+
+* Cookie-based persistent logins
+
+* Find DNS via resolv.conf parsing.
+
+=== Other random issues:
+
+* Figure out perms issues when writing to passwd files from Apache
+
 * Sanity checking of timeout values, etc. Esp. try to prevent g/w from blocking forever.
 
 * Auto-munging of directories in nocat.conf and etc/authserv.conf on install rather than having to do it by hand.
-
-* Easy 'disable public access' option in nocat.conf
-
-* Easy MAC white/blacklisting in nocat.conf
 
 * Time-based throttling example
 
 * CLI auth agent (for Linux users etc)
 
 * Better error reporting from gateway to authservice and from authservice to user during notification.
-
-* Group managment tools. *** bin/admintool is a fully functional commandline
-  interface.  Use it!
 
 * Doc note per Terry Schmidt: "(Note:  Causes Security alert
   message after clicking login, because you are directed from an insecure URL
@@ -66,10 +57,6 @@
 * Have auth tokens show up in both gateway and authservice logs, for bug tracking.
 
 * "Agree-Disagree" instead of just "Login" for splash page
-
-* Cookie-based persistent logins
-
-* Ping timeout option (instead of or in addition to repeating SSL auth)
 
 * Anonymous (vs. Public) Class Service
 

@@ -1,3 +1,6 @@
 #!/bin/sh
 
 pfctl -F all
+
+pfctl -R /etc/pf.conf
+pfctl -N /etc/nat.conf

@@ -1,38 +1,74 @@
 #!/usr/bin/perl -w
 
-use lib '/usr/local/nocat/lib';
 use POSIX qw(setsid);
 use Getopt::Std;
+use FindBin;
+
+use lib "$FindBin::Bin/../lib";
 use NoCat;
 use strict;
 
+# Gracefully handle termination signals.
+$SIG{HUP} = $SIG{INT} = sub { exit };
+
+# Set some default path values.
 $ENV{PATH} = "$ENV{PATH}:/sbin:/usr/sbin:/usr/local/sbin";
 
-my %opt; getopts( "Rf:" => \%opt );
+# Chdir home.
+chdir( "$FindBin::Bin/.." );
 
+# Get the command-line arguments:
+#   -R	=> Reset gateway and exit.
+#   -f	=> Use the specified file instead of nocat.conf.
+#
+my %opt; getopts( "RDf:" => \%opt );
+
+# Load the gateway object.
 my $config = $opt{f} || $ENV{NOCAT}; 
 my $server = NoCat->gateway( ConfigFile => $config );
 
+# Reset the firewall.
 $server->log( 6, "Resetting firewall." );
-$server->firewall->reset;
+$server->firewall->initialize;
 exit if $opt{R}; # We're done now, if -R.
 
 # See if we can bind the listener port.
 exit 1 unless $server->bind_socket;
 
-if ( my $log = $server->{GatewayLog} ) {
+# Set up the requisite logs (syslog is handled internal to NoCat.pm).
+if ( $server->{LogFacility} ne "syslog" and my $log = $server->{GatewayLog} ) {
     open STDERR, ">>$log" or die "Can't open log file $log: $!";
     open STDOUT, ">&STDERR" or die "Can't dup STDOUT to STDERR: $!";
 }
 
 $server->log( 1, "Gateway running on port $server->{GatewayPort}." );
 
+# Daemonize.
 if ( my $pid = fork ) {
     exit;
 } elsif ( not defined $pid ) {
     die "Can't fork: $!";
 }
-
 setsid;
 
-$server->run;
+# Fork a child process and watch it.
+if ( $opt{D} ) {
+    if ( my $pid = fork ) {
+	1 until waitpid( $pid, 0 );
+	$server->log( 0, "NOTE: Gateway returned", $? >> 8, 
+	    "on signal", $? & 127 );
+    } elsif ( not defined $pid ) {
+	die "Can't fork: $!";
+    } else {
+	$server->run;
+    }
+} else {
+    $server->run;
+}
+
+END {
+    unless (getppid) {
+        NoCat->log( 0, "Resetting firewall to initial settings." );
+        NoCat->firewall->reset;
+    }
+}

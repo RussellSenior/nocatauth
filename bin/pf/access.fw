@@ -1,64 +1,53 @@
-#!/usr/bin/perl 
+#!/bin/sh
 
-##
-# VERY simple access control script for OpenBSD
-##
-
-$ENV{PATH}="/sbin:/usr/sbin:/usr/local/sbin";
-$PFConf = '/usr/local/nocat/etc/pf.conf';
-$NatConf = '/usr/local/nocat/etc/nat.conf';
-
-foreach (keys %ENV) {
-	print "$_ => ".$ENV{$_}."\n";
+strip_rule_prefix() {
+    RULES=$( print "$RULES" | sed -e 's/^@[^ ]* //' );
 }
 
-sub panic {
-  print shift;
-  die "Usage: $0 [permit|deny] [MAC] [IP] [Class]\n\nExample: $0 permit 00:02:2d:aa:bb:cc 10.0.0.105 member\n";
+permit_nat() {
+	NAT=$(pfctl -sn)
+	NAT="no rdr on $InternalDevice proto tcp from $IP to any port 80\nno rdr on $InternalDevice proto tcp from $IP to any port 443\n$NAT"
+	#print "$NAT"
+	print "$NAT" | pfctl -N -
 }
 
-panic("FATAL: Not enough parameters!\n") unless @ARGV >= 4;
-
-my ( $action, $mac, $ip, $class ) = @ARGV;
-
-# Of the above we are only really interested in the $action, and $ip fields.
-# PF can't filter based on MAC currently, and I haven't added support for 
-# altq support to do bandwitch throttles based on class
-
-
-open PF, "<$PFConf";
-my @pf_lines = <PF>;
-close PF;
-
-open NAT, "<$NatConf";
-my @nat_lines = <NAT>;
-close NAT;
-
-if ($action eq "permit") {
-	# stack the pf rules since the last matching rule applies
-	push @pf_lines, "pass in on $ENV{InternalDevice} from $ip to any\n";
-	# queue the nat rules since the first matching rule applies
-	unshift @nat_lines, "no rdr on $ENV{InternalDevice} proto tcp from $ip to any port 80\n";
-	unshift @nat_lines, "no rdr on $ENV{InternalDevice} proto tcp from $ip to any port 443\n";
-} elsif ($action eq "deny") {
-	# pull out any pass lines
-	foreach (@pf_lines) {
-		undef($_) if /$ip/;
-	}
-	# pull out the rdr statemenets
-	foreach (@nat_lines) {
-		undef($_) if /$ip/;
-	}
-} else {
-	panic("FATAL: Bad action: $action!\n");
+deny_nat() {
+	NAT=$( pfctl -sn | grep -v $IP );
+	#print "$NAT"
+	print "$NAT" | pfctl -N -
 }
 
-open PF, ">$PFConf";
-print PF @pf_lines;
-close PF;
-open NAT, ">$NatConf";
-print NAT @nat_lines;
-close NAT;
+permit_fw () {
+	RULES=$( pfctl -sr )
+	strip_rule_prefix
+	RULES="$RULES\npass in on $InternalDevice from $IP to any\n"
+	#print "$RULES"
+	print "$RULES" | pfctl -R -
+}
 
-system("pfctl -R $PFConf");
-system("pfctl -N $NatConf");
+deny_fw () {
+	RULES=$( pfctl -sr | grep -v $IP)
+	strip_rule_prefix
+	#print "$RULES"
+	print "$RULES" | pfctl -R -
+}
+
+ACTION=$1
+MAC=$2
+IP=$3
+CLASS=$4
+
+if [ -z "$ACTION" -o -z "$MAC" -o -z "$IP" -o -z "$CLASS" ]; then
+    echo Usage: $0 [permit\|deny] [MAC] [IP] [Class]
+	echo Example: $0 permit 00:02:2d:aa:bb:cc 10.0.0.105 member
+	exit 1
+fi
+
+if [ "$ACTION" = 'permit' ]; then
+	permit_nat
+	permit_fw
+elif [ "$ACTION" = 'deny' ]; then
+	deny_nat
+	deny_fw
+fi
+

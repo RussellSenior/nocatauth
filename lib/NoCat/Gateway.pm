@@ -363,7 +363,7 @@ sub permit {
     if ( $prior_class ne $class ) {
 	# Insert the rule for the new class of service...
 	#
-	$fw->permit( $class, $peer->mac );
+	$fw->permit( $class, $peer->mac, $peer->ip );
 	
 	# *BEFORE* removing the rule for the *old* class of service, if any.
 	# This way we don't drop packets for stateful connections in the 
@@ -373,7 +373,7 @@ sub permit {
 	    $self->log( 5, "Upgrading ", $peer->user, 
 		" from $prior_class to $class service." );
 
-	    $fw->deny( $prior_class, $peer->mac );
+	    $fw->deny( $prior_class, $peer->mac, $peer->ip );
 	    $action = "Upgrade";
 	} else {
 	    $self->log( 5, "User ", $peer->user, " permitted in class $class" );
@@ -415,7 +415,7 @@ sub deny {
     $peer->status( DENY );
 
     # Tell the parent process about it.
-    $self->notify_parent( +DENY => $peer );
+    $self->notify_parent( DENY, $peer );
 }
 
 sub classify {

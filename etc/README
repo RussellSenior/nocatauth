@@ -2,6 +2,9 @@ Files in this directory include:
 
 authserv.conf	    - Sample Apache configuration snippet.
 
+exception           - Easy script for adding machines to the exception list
+                      (so they don't have to login).
+                      
 linux-2.4.config    - Sample configuration for Linux 2.4 kernel,
 		      including traffic shaping modules.
 
@@ -18,3 +21,6 @@ portforward.sample  - Some quick firewall rules (ipmasqadm and iptables) to
 group
 groupadm            } Dummy files for Passwd auth.  Use admintool to update.
 passwd
+
+logout.html         } Sample HTML for customizing the logout message 
+goodbye.html        } (and closing the agent window, too...)

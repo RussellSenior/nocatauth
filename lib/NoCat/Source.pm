@@ -1,6 +1,6 @@
 package NoCat::Source;
 
-use NoCat;
+use NoCat qw( ANY );
 use strict;
 use vars qw( @ISA @REQUIRED );
 
@@ -12,9 +12,7 @@ my @API_Methods = qw(
     store_user
     authenticate_user		     
 
-    fetch_user_by_id
     fetch_users_by_group
-    fetch_groups_by_user
 
     add_group_member
     drop_group_member
@@ -33,6 +31,24 @@ for my $method ( @API_Methods ) {
     *{__PACKAGE__ . "::$method"} = sub { _virtual($_[0], $method) };
 }
 
+# These are really dummy functions... if a user shows up, we'll call them
+# a member of the magical ANY group for now. With these two functions,
+# a Source driver can get away with implementing authenticate_user at
+# a bare minimum.
+#
+sub fetch_user_by_id {
+    my ( $self, $id )    = @_;    
+    return { $self->{UserIDField} => $id };
+}
+
+sub fetch_groups_by_user {
+    my ( $self, $user ) = @_;
+    return { ANY => 0 };
+}
+
+
+# The one non-dummy function.
+#
 sub new {
     my $self	= shift;
     my $class	= ref( $self ) || $self;

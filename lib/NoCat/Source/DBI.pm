@@ -35,29 +35,37 @@ sub where {
 #
 sub create_user {
     my ( $self, $user )	= @_;
-    my %data = %{ $user->data };
 
-    $data{$self->{UserStampField}} = undef if $self->{UserStampField};
-    $self->check_password($user);    
+    # Clear the user timestamp.
+    $user->set( $self->{UserStampField} => undef )
+	if $self->{UserStampField};
 
-    my @fields	= keys %data;
+    # Make sure the user's password is crypted.
+    $self->check_password( $user );
+
+    # Add the data to the database.
+    my $data	= $user->data;
+    my @fields	= keys %$data;
     my @place	= ("?") x @fields;
- 
+
     local $" = ", ";
     $self->db->do( "insert into $self->{UserTable} (@fields) values (@place)", 
-	{}, values %data );
+	{}, values %$data );
 }
 
 sub store_user {
     my ( $self, $user )	= @_;
-    my %data	= %{ $user->data };
-    my $fields	= $self->where( "," => keys %data );
 
+    # Make sure the user's password is crypted.
     $self->check_password($user);    
+
+    # Update the data in the database.
+    my $data	= $user->data;
+    my $fields	= $self->where( "," => keys %$data );
 
     local $" = ", ";
     $self->db->do( "update $self->{UserTable} set $fields where $self->{UserIDField} = ?",
-	{}, values %data, $user->id );
+	{}, values %$data, $user->id );
 }
 
 sub check_password {

@@ -1,7 +1,7 @@
 package NoCat::Source::RADIUS;
 
 use NoCat::Source;
-use Net::LDAP;
+use Authen::Radius;
 use strict;
 use vars qw( @ISA @REQUIRED );
 
@@ -30,22 +30,8 @@ sub radius {
 
 sub authenticate_user {
     my ($self, $user_pw, $user) = @_;
-    my $result = $self->radius->check_pwd($user, $user_pw);
+    my $result = $self->radius->check_pwd($user->id, $user_pw);
     return $result;
 }
 
-sub fetch_user_by_id {
-    my ( $self, $id )    = @_;    
-    return { $self->{UserIDField} => $id };
-}
-
-# this is really a dummy function... if a user shows up, we'll call them
-# a member of the magical ANY group for now.
-#
-sub fetch_groups_by_user {
-    my ( $self, $user ) = @_;
-    return { ANY => 0 };
-}
-
 1;
-

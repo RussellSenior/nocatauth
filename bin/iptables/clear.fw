@@ -1,0 +1,13 @@
+#!/bin/sh
+##
+# reset.fw: you guessed it.
+##
+
+PATH=/sbin:/usr/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/local/bin
+export PATH
+
+iptables -F
+iptables -t nat -F
+iptables -t mangle -F
+iptables -t filter -F
+

@@ -9,21 +9,21 @@ if [ -n "$1" -a -n "$2" -a -d "$2/$1" ]; then
 
 # Do we have iptables *and* are running Linux 2.4?
 #
-elif [ "$(which iptables 2>/dev/null)" -a \
-     "$(uname -sr | cut -d. -f-2)" = "Linux 2.4" ]; then
+elif which iptables >/dev/null 2>&1 && \
+  test X"`uname -sr | cut -d. -f-2`" = X"Linux 2.4"; then
     FIREWALL=iptables
 
 #
 # Or do we have ipchains?
 #
-elif [ $(which ipchains 2>/dev/null) ]; then
+elif which ipchains >/dev/null 2>&1; then
     FIREWALL=ipchains
 
 #
 # Or ip_filter (e.g. *BSD, Solaris, HP-UX, etc)?
 # <http://www.ipfilter.org/>
 #
-elif [ $(which ipf 2>/dev/null) ]; then
+elif which ipf >/dev/null 2>&1; then
 ipf_running="`ipf -V | grep 'Running' | awk '{print $2}'`";
     if [ "$ipf_running" = "yes" ]; then
 	FIREWALL="ipfilter"
@@ -34,7 +34,7 @@ ipf_running="`ipf -V | grep 'Running' | awk '{print $2}'`";
     fi
 
 # Or packetfilter (OpenBSD 3.0+)
-elif [ $(which pfctl 2>/dev/null) ]; then
+elif which pfctl >/dev/null 2>&1; then
     FIREWALL=pf
 
 else

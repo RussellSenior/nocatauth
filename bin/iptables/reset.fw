@@ -1,13 +1,25 @@
 #!/bin/sh
 ##
-# reset.fw: you guessed it.
+#
+# reset.fw: reset the default firewall rules
+#
 ##
 
 PATH=/sbin:/usr/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/local/bin
 export PATH
 
-iptables -F
-iptables -t nat -F
-iptables -t mangle -F
-iptables -t filter -F
+
+# Flush all user-defined chains
+#
+iptables -t filter -D FORWARD -j NoCat 2>/dev/null
+
+iptables -t nat -D PREROUTING -j NoCat_Capture 2>/dev/null
+
+# Only nat if we're not routing
+#
+if [ -z "$RouteOnly" ]; then
+  iptables -t nat -D POSTROUTING -j NoCat_NAT 2>/dev/null
+fi
+
+iptables -t mangle -D PREROUTING -j NoCat 2>/dev/null
 

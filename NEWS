@@ -1,6 +1,52 @@
 Release Notes:
 ==============
 
+07/07/2002 (v0.81)
+
+		*** IMPORTANT ***
+
+If you're upgrading from 0.80, Read the README!!!
+
+		*** IMPORTANT ***
+
+Lots of nifty updates for 0.81.  New features:
+
+* Samba, LDAP, and PAM authentication sources are now supported (and, in
+some cases, greatly improved.)  Thanks to Scott Lemon (for his deadly ninja
+LDAP fu), Martin Davidsson (for Radius.pm fixes).
+
+* Greatly improved pf support, largely due to contributions from Richard Lotz
+and DJ Gregor.
+
+* Completely rewritten firewall scripts for iptables.  The new method sets
+NoCat_* chains and manipulates them, and adds a single jump out to them. 
+This makes it much easier to run the gateway on an existing firewall,
+without mangling your firewall rules.  The gateway script also cleans itself
+up on exit, (theoretically) leaving your original firewall rules as they
+were.
+
+* Status page support in Captive/Passive mode (http://gateway:5280/status
+now works, just like it did in Open mode.)
+
+The following bugs were hopefully squashed:
+
+* Passwords are once again hashed before being stuck into MySQL (big oops in
+v0.80).
+
+* IE6 redirect problems are all resolved.
+
+* Auto discovery of network devices and network numbers should be a bit more
+stable.
+
+* Diagnostic mode (-D) shouldn't eat all resources anymore
+
+* AllowedWebHosts and RouteOnly should now work as advertised.
+
+* Fixed a nasty situation where a user who changed their IP got caught in a
+capture loop.
+
+-=-=-=-=-=-=-=-
+
 05/06/2002 (v0.80)
 
 Ugh, two months since our last release... :-( Well, a number of factors have
@@ -48,6 +94,8 @@ significantly more stable on PersonalTelco's public nodes. You can turn this
 off (don't ask me why you'd want to, but you can) by adding "ForkOff 0" to
 your nocat.conf.
 
+-=-=-=-=-=-=-=-=-=-
+
 03/07/2002 (v0.78)
 
 Major bug fixes.
@@ -74,186 +122,3 @@ directories, however. Of course, use of this feature is not recommended
 for security reasons, but it will let you try out NoCatAuth without having
 to set up multiple machines.
 
--=-=-=-=-
-
-02/15/2002 (v0.77)
-
-I'm a dummy. Thanks to Chip Ach for pointing out my little syntax error
-in Peer.pm. Note to self: In future, run perl -cw on everything *before*
-checking into CVS. :-) 
-
-Also new this release:
-
-* A new rule in iptables/initialize.fw that denies access on the
-    ExternalInterface to the GatewayPort, unless it originates from
-    AuthServiceAddr. Should at least make NoCatAuth invisible to
-    random Internet portscans.
-
-* A little test script that runs perl -cw on everything.
-
-* Also, I'm taking the ChangeLog out of the distribution, 'cause it's vastly
-    increasing the size of the tarball. Find it on the website if you need it.
-
--=-=-=-=-
-
-02/13/2002 (v0.76)
-
-Well, this release was a bit overdue. Included:
-
-* Passive mode support: Like Captive mode, but intended to work even behind
-    NATs. Broken still, insecure, completely beta, don't use it yet, but here
-    it is.
-
-* nocat.conf has been split into gateway.conf and authserv.conf, per Sameer 
-    Verma's recommendation. The relevant file installs as $PREFIX/nocat.conf
-    depending on what you're installing.
-
-* Open mode now supports favicon.ico type icons. Thanks to Michael Codanti for 
-    the patch.
-
-* Expiration of client connections based on disappearance from the ARP cache.
-    Based on a patch from Michael Codanti.
-
-* AllowWebHosts directive now supports "friendly" websites that clients may
-    visit without first logging in. Good for linking to your community's
-    homepage from your splash page, etc. Thanks to the PersonalTelco folks
-    for the idea.
-
-* Many bug fixes and other whatnot. Try it. You'll love it.
-
-Enjoy. SDE
-
--=-=-=-=-
-
-10/25/2001 (v0.60)
-
-Big update:
-
-* Pluggable authentication sources: NoCatAuth now (theoretically)
-  supports any kind of dynamic firewall.
-
-* ipchains support (and a start on ipfilter support)
-
-* User auth code rewritten
-
-* LocalGateway can now be defined in nocat.conf.  This means 
-  that you too can run the Auth system and a Gateway on the same
-  Machine!  (not that we'd recommend it, but so many people asked
-  for it, so here you are.  =)
-
--=-=-=-=-
-
-09/25/2001 (v0.52)
-
-Forgot to export ANY in NoCat.pm.  Fixed.
-
-RJF
-
--=-=-=-=-
-
-09/24/2001 (v0.51)
-
-Open Portal mode is now fixed for browsers that return odd http header data. 
-This caused a 'looping' issue where users couldn't escape the splash page in
-some circumstances.
-
-Also, the magical "ANY" group can now provide member class access to any
-member of any group.  Specify ANY in the TrustedGroups directive of the
-nocat.conf (or leave it blank) and members of any group will be accepted
-into the co-op class.
-
-RJF
-
--=-=-=-=-
-
-09/21/2001 (v0.50)
-
-Moving right along...
-
-RJF
-
--=-=-=-=-
-
-09/15/2001 (v0.45)
-
-Oops.  Quick bugfix: the revised NoCat.pm wasn't checked into 
-v0.43 (it was a laaaaaaate nite.)  It's all better now.
-
-RJF
-
--=-=-=-=-
-
-09/15/2001 (v0.43)
-
-Support for Open portal mode is now included.  Set the 
-"GatewayMode" directive to "Open" in the nocat.conf on your
-gateway, and it will display a simple splash page rather than
-connect to the auth system.  Set it to "Captive" for regular
-Captive portal mode.
-
-
-RJF
-
--=-=-=-=-
-
-08/15/2001 (v0.42)
-
-Another quick maintenance release.
-
-RJF
-
--=-=-=-=-
-
-08/15/2001 (v0.41)
-
-Largely a maintenance release, with a new firewall feature:
-IncludePorts and ExcludePorts (see INSTALL and sample
-nocat.conf for details).
-
-Also Fixed the DNSAddr specification bug, added some port
-forwarding examples in etc/, an init script, and more
-documentation.  Yes, we're still Beta, but getting better 
-all the time!
-
-RJF
-
--=-=-=-=-
-
-08/12/2001 (v0.40)
-
-The NoCat Auth distro has come a long way. We've got a live
-authentication service up and running; you can find it at
-http://nocat.net. Almost all of the functionality from the
-original white paper spec has been implemented; at this point,
-the major feature still in an experimental state is the
-per-service-class bandwidth shaping. It's still Beta, but it
-seems to work pretty well for us. We hope it'll work for you,
-too, and we hope you'll let us know if does. (And if it doesn't 
-we hope you'll send patches and not flames... :-)
-
-SDE
-
-=========
-
-07/25/2001 (v0.30)
-
-Greetings from the 2001 O'Reilly Open Source Conference
-in San Diego. We've spent a lot of time polishing this
-and making it work. We're pleased to call it BETA
-software, and we think it basically works, but YMMV. Please
-send your thoughts, comments, questions, bug reports, and
-most of all, your patches. Thanks.
-
-- SDE
-
-=========
-
-07/12/2001
-
-This is ALPHA software. It does not conform completely
-to the NoCat spec, it has no documentation, and it is
-intrinsically insecure. However, it does somewhat
-function, with a good bit of tweaking. Don't use it.
-Have a nice day. :)
-
-- SDE & RJF

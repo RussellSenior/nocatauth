@@ -65,7 +65,7 @@ sub pgp {
     close IN;
 
     if (waitpid($pid, 0) == -1 or $? >> 8 != 0) {
-	$self->log( 1, "$cmd returned error ", $? >> 8 );
+	$self->log( 1, "$cmd returned error: $! (", $? >> 8, ")" );
 	return;
     }
 
@@ -94,18 +94,22 @@ sub verify {
 
     $cmd = $self->SUPER::format( $cmd );
     
-    my $kid = open OUT, "|-";
+    local $SIG{CHLD} = "DEFAULT";
 
+    my $kid = open OUT, "|-";
     if ( not defined $kid ) {
 	die "$cmd: fork failure";
     } elsif ( not $kid ) {
 	exec $cmd;
     }
-
     print OUT $txt;
-    my $success = close OUT;
-    $self->log( 1, "$cmd: $!" ) if $! and not $success;
-    return $success;
+    close OUT;
+
+    if (my $result = ( $? >> 8 )) {
+	return $self->log( 1, "$cmd returned $result" );
+    } else { 
+	return 1;
+    }
 }
 
 sub extract {

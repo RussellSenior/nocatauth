@@ -23,7 +23,7 @@ sub socket {
     if ( defined $sock ) {
 	$self->{Socket} = $sock;
 	$self->gateway_ip( $sock->sockhost );
-	$self->ip; # seed IP address.
+	$self->ip( $sock );  # Seed IP address.
     }
     return $self->{Socket};
 }
@@ -35,15 +35,19 @@ sub gateway_ip {
 }
 
 sub ip {
-    my ( $self, $ip ) = @_;
-    $self->{IP} = $ip if defined $ip;
+    my ( $self, $sock ) = @_;
 
-    unless ( defined $self->{IP} ) {
-	if ( my $sock = $self->socket ) {
+    if ( $sock or not defined $self->{IP} ) {
+	my $old_ip = $self->{IP};
+
+	if ( $sock ||= $self->socket ) {
 	    $self->{IP} = $sock->peerhost;
 	} elsif ( my $mac = $self->{MAC} ) {
 	    $self->{IP} = $self->firewall->fetch_ip( $mac );
 	}
+    
+	# If this peer is coming from a different IP, forget their previous status.
+	$self->status("") if $old_ip and $old_ip ne $self->{IP};
     }
 
     return $self->{IP};
